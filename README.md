@@ -37,16 +37,6 @@ The software operates two distinct, non-overlapping reconciliation engines:
 > [!NOTE]
 > **Important Distinction**: Ledger-to-Ledger reconciliation verifies commercial balance agreement and cash settlement between trading entities; it does **not** evaluate or determine statutory GST Input Tax Credit (ITC) eligibility under Section 16(2) of the CGST Act. The GST Portal reconciliation mode must be used for GSTR-2B inward tax credit audits.
 
-### 📸 Application Interface Screenshots
-
-| Workflow A: Ledger-to-Ledger Reconciliation Workstation |
-| :---: |
-| ![Ledger-to-Ledger Reconciliation Mode](screenshots/workstation_ledger_mode.png) |
-
-| Workflow B: GST Portal Inward ITC Reconciliation |
-| :---: |
-| ![GST Portal Reconciliation Mode](screenshots/workstation_gstr_mode.png) |
-
 ---
 
 ## 2. Download the Windows Application
@@ -89,6 +79,52 @@ Follow this step-by-step workflow:
 8. **Set Destination**: Choose the directory where your final reconciliation report should be created.
 9. **Generate Report**: Click the green **Generate Reconciliation Report** button. The application processes the records in a responsive background thread with an animated progress bar.
 10. **Review in Excel**: Once notified of completion, open the resulting Excel file to review the detailed worksheets.
+
+---
+
+## Application Screenshots
+
+The following screenshots illustrate the genuine desktop application workflow and the resulting audit-grade Excel reconciliation workbooks generated using the included demonstration ledgers.
+
+### 1. Main Application Interface
+The launch interface provides one-click switching between Ledger-to-Ledger commercial reconciliation and GST Portal Inward ITC tax credit audits, with customizable amount and date tolerance thresholds.
+
+![Main Application Interface](screenshots/01-main-interface.png)
+
+### 2. Pre-Reconciliation Workbook Inspection
+Before running reconciliation, the interactive inspection panel validates workbook structure, identifies active worksheets, detects header rows, parses opening balances, and confirms accounting sign conventions.
+
+![Workbook Inspection and Validation](screenshots/02-workbook-inspection.png)
+
+### 3. Ledger-to-Ledger Reconciliation Workflow
+Books vs Party Statement mode configured with internal and external demonstration ledgers, tolerance windows (₹1.00, 30 days), and output destination folder.
+
+![Ledger-to-Ledger Reconciliation Setup](screenshots/03-ledger-reconciliation.png)
+
+### 4. Executive Summary Worksheet
+The generated Excel workbook opens with a comprehensive Executive Summary featuring the commercial status badge, financial comparison statement, and opening/closing balance variance analysis.
+
+![Executive Summary Worksheet](screenshots/05-executive-summary.png)
+
+### 5. Matched Transactions Audit Trail
+Complete 29-column side-by-side transaction audit trail displaying matching confidence tiers (Tier 1 exact, Tier 2 settlement, Tier 3 multi-reference), applied matching rules, and plain-English verification explanations.
+
+![Matched Transactions Audit Trail](screenshots/06-matched-transactions.png)
+
+### 6. Unmatched Transactions & Section 194Q TDS Analysis
+Internal ledger vouchers requiring accountant review are segregated into the `In Our Books Only` worksheet, complete with statutory classification (such as Section 194Q TDS withholding) and recommended next actions.
+
+![Unmatched Transactions Review](screenshots/07-unmatched-review.png)
+
+### 7. Data Quality & Ingestion Audit Log
+Full audit traceability identifying segregated opening balance lines and excluded summary total rows, with source line numbers, raw contents, and handling actions taken.
+
+![Data Quality and Ingestion Audit Log](screenshots/08-data-quality.png)
+
+### 8. GST Portal Inward ITC Reconciliation Workflow
+GST Portal mode configured with official GSTR-2B download and Tally purchase register, matching inward ITC by invoice number, vendor GSTIN, and tax components (IGST, CGST, SGST, Cess).
+
+![GST Portal GSTR-2B Reconciliation](screenshots/04-gst-reconciliation.png)
 
 ---
 
