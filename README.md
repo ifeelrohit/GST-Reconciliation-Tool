@@ -37,6 +37,16 @@ The software operates two distinct, non-overlapping reconciliation engines:
 > [!NOTE]
 > **Important Distinction**: Ledger-to-Ledger reconciliation verifies commercial balance agreement and cash settlement between trading entities; it does **not** evaluate or determine statutory GST Input Tax Credit (ITC) eligibility under Section 16(2) of the CGST Act. The GST Portal reconciliation mode must be used for GSTR-2B inward tax credit audits.
 
+### 📸 Application Interface Screenshots
+
+| Workflow A: Ledger-to-Ledger Reconciliation Workstation |
+| :---: |
+| ![Ledger-to-Ledger Reconciliation Mode](screenshots/workstation_ledger_mode.png) |
+
+| Workflow B: GST Portal Inward ITC Reconciliation |
+| :---: |
+| ![GST Portal Reconciliation Mode](screenshots/workstation_gstr_mode.png) |
+
 ---
 
 ## 2. Download the Windows Application
