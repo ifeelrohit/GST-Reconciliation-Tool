@@ -1,0 +1,205 @@
+================================================================================
+GST & ACCOUNTING LEDGER RECONCILIATION TOOL — USER INSTRUCTIONS
+================================================================================
+
+1. OVERVIEW
+-----------
+This standalone desktop workstation provides two distinct, non-overlapping
+reconciliation engines tailored for real-world accounting workflows:
+
+  Workflow A: LEDGER-TO-LEDGER RECONCILIATION (DEFAULT)
+  Compares an internal accounting ledger ("In Our Books", e.g., Tally Ledger Export)
+  against an external party's statement (e.g., Vendor or Customer SAP/ERP ledger export).
+  Automatically produces a professional, audit-friendly, explainable 9-worksheet
+  Excel reconciliation workbook with complete side-by-side audit trails.
+
+  Workflow B: GST PORTAL RECONCILIATION
+  Compares GST Portal inward Input Tax Credit (GSTR-2B download) against an internal
+  purchase voucher register (Tally GSTR-3B Voucher Register) to determine claimed
+  vs portal-reflected ITC by tax head.
+
+No installation of Python, libraries, or external runtime software is required.
+
+
+2. HOW TO LAUNCH
+----------------
+Double-click `GST-Reconciliation-Tool.exe` located in the `dist` folder:
+`C:\GST-Reconciliation-Tool-main\dist\GST-Reconciliation-Tool.exe`
+
+A graphical workstation titled "GST & Accounting Ledger Reconciliation Tool" will open.
+
+
+================================================================================
+WORKFLOW A: LEDGER-TO-LEDGER RECONCILIATION (DEFAULT)
+================================================================================
+
+1. SELECT WORKFLOW:
+   At the top of the workstation, select:
+   (•) Ledger-to-Ledger Reconciliation (Our Books vs Vendor/Party ERP Statement — 9 Explainable Audit Sheets)
+
+2. SELECT INPUT WORKBOOKS:
+   File 1: Our Books Ledger (e.g., 'LAPP INDIA IN OUR BOOKS. 30.09.2026.xlsx')
+     - Exported from Tally or internal ERP.
+     - Contains columns: Date, Particulars, Vch Type, Vch No., Debit, Credit.
+     - Report headers, address titles, blank rows, and total rows are
+       automatically detected and segregated into the Data Quality audit sheet.
+
+   File 2: Party Statement / Ledger (e.g., 'LAPP INDIA LEDGER. 30.09.2026.xlsx')
+     - Exported from the vendor or customer's system (e.g., SAP, Oracle, ERP).
+     - Contains columns: Assignment, Account, Document Type, Document Number,
+       Reference, Document Date, Amount in local currency.
+     - Automatically handles multi-account statements (e.g., Account 183661 and
+       Account 181256) and accumulates their opening balances individually.
+
+   *Smart Auto-Orientation:*
+   The tool automatically identifies which workbook is Our Books and which is the
+   Party Statement. If you select them in reverse order, the tool orients them
+   correctly without error.
+
+3. INSPECT & PREVIEW WORKBOOKS:
+   Click "🔍 Inspect & Preview Workbooks" at any time. The inspection panel displays:
+     - Detected source format (.xlsx / .xls) and file size
+     - Detected worksheet names and active sheet
+     - Detected header row numbers
+     - Identified column mappings
+     - Candidate transaction row counts
+     - Opening balance values and opening row counts
+     - Excluded rows count and breakdown (total rows, opening rows, blank rows)
+     - Accounting sign conventions used
+     - Configured matching tolerances and destination folder
+
+4. CONFIGURE MATCHING TOLERANCES:
+   - Amount Tolerance (₹): Defaults to 1.00 (absorbs fractional paisa/rupee rounding).
+   - Date Tolerance (Days): Defaults to 30 days (allows for billing/clearing transit).
+
+5. SELECT DESTINATION FOLDER:
+   Choose the output directory where the final Excel report will be saved.
+
+6. CLICK "GENERATE RECONCILIATION REPORT":
+   The application processes the records in a responsive background thread with an
+   animated progress bar. Once complete, it saves an Excel workbook named:
+   `Ledger_Recon_Report_<YYYYMMDD_HHMMSS>.xlsx`.
+
+
+================================================================================
+STRUCTURE OF THE 9-WORKSHEET LEDGER AUDIT REPORT
+================================================================================
+
+The generated Excel workbook contains nine detailed, audit-friendly worksheets:
+
+1. 'Executive Summary':
+   High-level report designed for business owners and senior management:
+   - Header with Report ID, Generation Date, Mode, Company Names, and Period.
+   - Financial Comparison Table: Opening Balance, Purchases, Payments, TDS, Discounts,
+     Debit/Credit Notes, and Closing Balances for both sides with variances.
+   - Matching Summary: Confirmed matches, probable matches, grouped settlements,
+     unmatched counts, and candidate duplicates.
+   - Status & Key Takeaways: Clear explanation of reconciling items.
+   - Explicit Status (e.g., 'RECONCILED — FULLY BALANCED' or 'REVIEW REQUIRED —
+     BALANCES AGREE BUT OFFSETTING TRANSACTIONS REMAIN').
+
+2. 'Matched Transactions':
+   Comprehensive 29-column side-by-side audit sheet:
+   - Match ID, Match Status, Match Confidence Tier
+   - Internal Vch Date, Vch No, Type, Account, Particulars, Debit, Credit, Signed Amount
+   - Party Doc Date, Type, Doc No, Account, Reference, Assignment, Signed Amount
+   - Absolute Amount Difference, Date Difference (Days)
+   - Reference Comparison, Document Comparison
+   - Explicit Rule Applied, Plain Language Explanation, Review Status, Next Action
+
+3. 'In Our Books Only':
+   Internal ledger vouchers without a counterpart on the party statement:
+   - Shows Voucher No, Date, Type, Account, Debit, Credit, Signed Amount.
+   - Accounting Classification (Purchase, Payment, TDS Deduction, Cash Discount, etc.).
+   - Specific Reason Not Matched (e.g., statutory Section 194Q TDS withheld).
+   - Recommended Next Action (e.g., issue Form 16A TDS certificate to vendor).
+
+4. 'In Party Statement Only':
+   External statement entries not recorded in internal books:
+   - Shows Account, Document Date, Type, Doc No, Reference, Assignment, Amount.
+   - Accounting Classification (Billed Invoice, Payment Clearance, etc.).
+   - Specific Reason Not Matched (e.g., invoice billed but missing in purchase register).
+   - Suggested Verification Action (e.g., verify GRN / material gate receipt).
+
+5. 'Amount Differences':
+   Transactions linked by identical references or voucher numbers where amounts
+   diverge beyond tolerance:
+   - Shows Internal Amount vs External Amount side-by-side.
+   - Absolute Variance (₹) and Variance Percentage (%).
+   - Plain-language explanation and recommended accounting adjustment.
+
+6. 'Possible Duplicates':
+   Audit check for potential double-billing or duplicate payments:
+   - Repeated document numbers or references across multiple rows.
+   - Identical transaction amounts on the exact same date.
+   - Shows Source System, Source Rows, Document Identifier, Total Amount, Count,
+     and Recommended Verification Action.
+
+7. 'Opening & Balance Variance':
+   Deep audit of balance differences:
+   - Opening Balance Breakdown: Individual accounts (e.g., Lapp Account 183661 vs 181256).
+   - Net Period Transaction Movement comparison.
+   - Net Closing Balance comparison.
+   - Mathematical proof: Opening Difference + Movement Difference = Closing Difference.
+   - Distinction between historical prior-period variance and current-period variance.
+
+8. 'Review Actions':
+   A prioritized action register for accountants:
+   - Action ID, Issue Category, Source References, Amount Involved.
+   - Clear Explanation and Step-by-Step Recommended Next Action.
+   - Review Status ('Requires Verification' / 'Open').
+
+9. 'Data Quality':
+   Full traceability of every single row in both input workbooks:
+   - Every row excluded from the transaction engine is logged here with exact row number.
+   - Explains why the row was excluded (Summary Total Row, Opening Balance Segregated,
+     Blank Empty Row, or Non-Transaction Text).
+   - Guarantees that zero source rows disappear silently without documentation.
+
+
+================================================================================
+WORKFLOW B: GST PORTAL RECONCILIATION (GSTR-2B VS TALLY)
+================================================================================
+
+1. SELECT WORKFLOW:
+   At the top of the workstation, select:
+   (•) GST Portal Reconciliation (GSTR-2B Portal Download vs Tally Purchase Register)
+
+2. REQUIRED INPUT FILES:
+   - File 1: Official GSTR-2B Excel workbook (.xlsx) downloaded from the GST Portal.
+   - File 2: Tally "GSTR-3B - Voucher Register" export (.xls or .xlsx).
+
+3. CLICK "GENERATE RECONCILIATION REPORT":
+   Produces `GST_Recon_Report_<YYYYMMDD_HHMMSS>.xlsx` containing:
+   - 'Summary': Net comparison of eligible ITC across IGST, CGST, SGST, and Cess.
+   - 'In 2B not in Tally': Invoices uploaded by vendors on the portal but not claimed in books.
+   - 'In Tally not in 2B': Invoices claimed in purchase register but missing from portal GSTR-2B.
+   - 'Near matches': Invoices with matching tax amounts but minor rounding differences in taxable value.
+
+
+================================================================================
+IMPORTANT ACCOUNTING RULES & SECURITY PRACTICES
+================================================================================
+1. Accounting Sign Conventions:
+   - Buyer's Books: Credit = Inward Invoice / Liability (+); Debit = Payment / TDS / Reduction (-).
+   - Vendor Statement: Positive = Billed Invoice / Receivable (+); Negative = Payment / Clearance (-).
+
+2. Multi-Account Statement Handling:
+   Large vendors often consolidate multiple client accounts into a single ledger export
+   (such as Lapp India Accounts 183661 and 181256). The tool tracks each account separately,
+   aggregates opening balances, and maintains transparency on Worksheet 7.
+
+3. Statutory TDS (Section 194Q):
+   TDS deducted at source by buyers under Income Tax Section 194Q is automatically
+   classified and segregated. Because vendors bill gross amounts, TDS entries naturally
+   appear in 'In Our Books Only' with instructions to provide Form 16A certificates.
+
+4. Spreadsheet Security (Formula Injection CWE-1236):
+   All user-supplied text strings starting with '=', '+', '-', or '@' are automatically
+   prefixed with a single quote (') during report generation, preventing spreadsheet
+   formula execution when opened in Microsoft Excel.
+
+5. Open File Precaution:
+   Ensure destination Excel report files are not currently open in Microsoft Excel
+   when generating a new report, or Windows will deny file write access.
+================================================================================

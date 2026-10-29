@@ -30,6 +30,11 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 
+class ReconciliationError(Exception):
+    """Domain exception raised when workbook format or contents are invalid."""
+    pass
+
+
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
@@ -74,12 +79,12 @@ def load_2b(path):
                     meta[key] = vals[-1]
 
     if "B2B" not in wb.sheetnames:
-        sys.exit(f"ERROR: '{path}' has no 'B2B' sheet - is this a GSTR-2B download?")
+        raise ReconciliationError(f"'{path}' has no 'B2B' sheet - is this a GSTR-2B download?")
 
     ws = wb["B2B"]
     hdr, rows = find_header_row(ws, ["GSTIN of supplier", "Taxable Value"])
     if hdr is None:
-        sys.exit("ERROR: could not locate the B2B header row in the 2B file.")
+        raise ReconciliationError("Could not locate the B2B header row in the 2B file.")
     # Data starts two rows below the merged header (sub-header + data).
     invoices = []
     for r in rows[hdr + 2:]:
@@ -130,8 +135,106 @@ def load_register(path):
         reg.append(rec)
     wb.close()
     if not reg:
-        sys.exit(f"ERROR: no dated voucher rows found in '{path}'.")
+        raise ReconciliationError(f"No dated voucher rows found in '{path}'.")
     return reg
+
+
+def inspect_gstr_file(path):
+    """Inspect an Excel workbook for GSTR-2B or Tally Purchase Register structures."""
+    if not path or not os.path.exists(path):
+        return {
+            "is_valid": False,
+            "error_message": f"File does not exist: {path}",
+            "filename": os.path.basename(path) if path else "",
+            "file_format": os.path.splitext(path)[1].lower() if path else "",
+            "file_size_kb": 0.0
+        }
+
+    ext = os.path.splitext(path)[1].lower()
+    try:
+        file_size_kb = round(os.path.getsize(path) / 1024, 1)
+    except Exception:
+        file_size_kb = 0.0
+
+    try:
+        wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        sheet_names = wb.sheetnames
+        wb.close()
+    except Exception as e:
+        return {
+            "is_valid": False,
+            "error_message": f"Could not read workbook: {str(e)}",
+            "filename": os.path.basename(path),
+            "file_format": ext,
+            "file_size_kb": file_size_kb,
+            "sheet_names": []
+        }
+
+    # Check for GSTR-2B
+    if "B2B" in sheet_names:
+        try:
+            invoices, cdnr, meta = load_2b(path)
+            return {
+                "is_valid": True,
+                "error_message": "",
+                "filename": os.path.basename(path),
+                "file_format": ext,
+                "file_size_kb": file_size_kb,
+                "sheet_names": sheet_names,
+                "active_sheet": "B2B",
+                "detected_type": "GST Portal GSTR-2B Download",
+                "header_row": 5,
+                "detected_columns": ["GSTIN of supplier", "Trade/Legal name", "Invoice number", "Invoice Date", "Taxable Value", "Tax Values"],
+                "candidate_count": len(invoices),
+                "opening_balance": 0.0,
+                "excluded_count": 0,
+                "excluded_summary": {},
+                "sign_convention": "Portal ITC Available: Invoice Taxable & Tax Values (+), CDNR (-)",
+                "company": meta.get("Trade Name (if any)") or meta.get("GSTIN") or "",
+                "period": meta.get("Tax Period") or meta.get("Financial Year") or "",
+                "notes_count": len(cdnr)
+            }
+        except Exception as e:
+            return {
+                "is_valid": False,
+                "error_message": f"GSTR-2B layout check failed: {str(e)}",
+                "filename": os.path.basename(path),
+                "file_format": ext,
+                "file_size_kb": file_size_kb,
+                "sheet_names": sheet_names
+            }
+
+    # Check for Tally Purchase / Voucher Register
+    try:
+        reg = load_register(path)
+        return {
+            "is_valid": True,
+            "error_message": "",
+            "filename": os.path.basename(path),
+            "file_format": ext,
+            "file_size_kb": file_size_kb,
+            "sheet_names": sheet_names,
+            "active_sheet": sheet_names[0],
+            "detected_type": "Tally Purchase / Voucher Register",
+            "header_row": 1,
+            "detected_columns": ["Date", "Particulars", "Voucher Type", "Voucher No", "Taxable Value", "Tax Values"],
+            "candidate_count": len(reg),
+            "opening_balance": 0.0,
+            "excluded_count": 0,
+            "excluded_summary": {},
+            "sign_convention": "Purchase Register ITC Claimed in Books",
+            "company": "",
+            "period": ""
+        }
+    except Exception as e:
+        return {
+            "is_valid": False,
+            "error_message": f"Does not contain 'B2B' sheet (GSTR-2B) nor standard Tally Voucher Register: {str(e)}",
+            "filename": os.path.basename(path),
+            "file_format": ext,
+            "file_size_kb": file_size_kb,
+            "sheet_names": sheet_names
+        }
 
 
 # -----------------------------------------------------------------------------
@@ -173,7 +276,7 @@ def reconcile(invoices, reg):
             still_2b.append(inv)
     only_reg = [x for bucket in reg_by_tax.values() for x in bucket]
 
-    return dict(matched=matched, only_2b=still_2b, only_reg=only_reg,
+    return dict(matched=matched, matched_count=matched, only_2b=still_2b, only_reg=only_reg,
                 near_pairs=near_pairs)
 
 
@@ -350,8 +453,11 @@ def main():
         if not os.path.isfile(f):
             sys.exit(f"ERROR: file not found: {f}")
 
-    invoices, cdnr, meta = load_2b(args.gstr2b)
-    reg = load_register(args.register)
+    try:
+        invoices, cdnr, meta = load_2b(args.gstr2b)
+        reg = load_register(args.register)
+    except ReconciliationError as e:
+        sys.exit(f"ERROR: {e}")
     result = reconcile(invoices, reg)
 
     out = args.out

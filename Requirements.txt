@@ -1,5 +1,12 @@
-# GST Reconciliation Tool - Python Dependencies
+# ================================================================================
+# GST & Accounting Ledger Reconciliation Tool - Dependencies
+# Python 3.12 (64-bit) Compatible
+# ================================================================================
 
+# Spreadsheet Processing & Engines
 openpyxl>=3.1.5,<4.0
-pandas>=2.3.0,<3.0
+pandas>=2.2.0,<3.0
 xlrd>=2.0.2,<3.0
+
+# Windows Standalone Packaging
+pyinstaller>=6.10.0,<7.0

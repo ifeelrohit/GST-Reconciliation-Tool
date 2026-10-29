@@ -1,83 +1,91 @@
 # ============================================
-# Python
+# Python & Bytecode
 # ============================================
-
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyd
 
 # ============================================
-# Virtual Environment
+# Virtual Environments
 # ============================================
-
 .venv/
 venv/
 env/
 ENV/
 
 # ============================================
-# PyInstaller
+# PyInstaller & Build Artifacts
 # ============================================
-
 build/
 dist/
 *.spec
 
 # ============================================
-# IDE
+# IDE & Editor Configurations
 # ============================================
-
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # ============================================
-# OS Files
+# Operating System Files
 # ============================================
-
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # ============================================
-# Logs
+# Logs, Backups & Scratch Scripts
 # ============================================
-
 *.log
-
-# ============================================
-# Temporary Files
-# ============================================
-
 *.tmp
 *.temp
+*.bak
+scratch/
+test_output/
 
 # ============================================
-# Excel Temporary Files
+# Excel Temporary Locks & Generated Reports
 # ============================================
-
 ~$*.xlsx
 ~$*.xls
+*Recon_Report*.xlsx
+*Ledger_Recon*.xlsx
+*GST_Recon*.xlsx
+*Report*.xlsx
 
 # ============================================
-# Generated Reports
+# Confidential Client Accounting Data Safeguard
 # ============================================
-
-GST_Reconciliation_Report*.xlsx
+*LAPP*
+*OUR BOOKS*
+*IN OUR BOOKS*
+*LEDGER*.xlsx
+*LEDGER*.xls
+!Sample Files/Demo_*
 
 # ============================================
-# Python Cache
+# Distribution Archives (Publish via GitHub Releases)
 # ============================================
+*.zip
+staging_package/
+release_distribution/
 
+# ============================================
+# Environment Variables, Secrets & Keys
+# ============================================
+.env
+*.pem
+*.key
+*.token
+credentials*
+
+# ============================================
+# Testing & Coverage Caches
+# ============================================
 .pytest_cache/
 .mypy_cache/
-
-# ============================================
-# Environment Variables
-# ============================================
-
-.env
-
-# ============================================
-# Jupyter
-# ============================================
-
-.ipynb_checkpoints/
+.coverage
+htmlcov/

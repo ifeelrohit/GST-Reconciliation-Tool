@@ -1,0 +1,58 @@
+name: Windows Build & Test Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Test on Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r Requirements.txt
+
+      - name: Run automated test suite
+        run: |
+          python -m unittest tests/test_ledger_recon.py -v
+
+      - name: Build standalone Windows executable
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed --name "GST-Reconciliation-Tool" --paths "src" --hidden-import openpyxl --hidden-import pandas --hidden-import xlrd --hidden-import reconcile --hidden-import ledger_recon src/gst_recon_gui.py
+
+      - name: Verify executable creation and checksum
+        shell: pwsh
+        run: |
+          $exePath = "dist/GST-Reconciliation-Tool.exe"
+          if (-not (Test-Path $exePath)) {
+            Write-Error "Executable was not generated!"
+            exit 1
+          }
+          $item = Get-Item $exePath
+          $hash = (Get-FileHash -Path $exePath -Algorithm SHA256).Hash
+          Write-Host "Build verified successfully!"
+          Write-Host "File size: $($item.Length) bytes"
+          Write-Host "SHA-256: $hash"
+
+      - name: Upload executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GST-Reconciliation-Tool-Windows-x64
+          path: dist/GST-Reconciliation-Tool.exe
+          if-no-files-found: error
