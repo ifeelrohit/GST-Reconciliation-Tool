@@ -46,16 +46,18 @@ STEP 3: SELECT RECONCILIATION MODE
 --------------------------------------------------------------------------------
 The tool offers two distinct reconciliation modes:
 
-Mode A: Ledger-to-Ledger Reconciliation (Default)
+Mode A: Ledger-to-Ledger Reconciliation (Commercial Books vs Statement)
   - Compares internal accounting ledgers ("In Our Books", e.g. Tally export)
     against an external party's statement (Vendor or Customer SAP/ERP export).
   - Automatically produces an audit-friendly 9-worksheet Excel report.
   - Features smart auto-orientation if files are chosen in reverse order.
 
-Mode B: GST Portal Reconciliation
+Mode B: GST Portal Reconciliation (GSTR-2B Portal vs Tally Register)
   - Compares official GST Portal GSTR-2B download (.xlsx) against a Tally
-    "GSTR-3B - Voucher Register" (.xls or .xlsx).
-  - Identifies matched invoices, portal-only ITC, and books-only claims by tax head.
+    Purchase Register (.xlsx or .xls) using dynamic header mapping and 4-pass matching.
+  - Automatically produces an audit-friendly 3-worksheet Excel report:
+    Summary (with official ITC Bridge tying to Portal ₹0.00 diff), Reco Detail,
+    and Data Quality.
 
 STEP 4: INSPECT WORKBOOKS & GENERATE REPORT
 --------------------------------------------------------------------------------
@@ -65,6 +67,11 @@ STEP 4: INSPECT WORKBOOKS & GENERATE REPORT
 3. Choose your destination folder.
 4. Click the green "Generate Reconciliation Report" button.
 5. Once complete, open the generated Excel report.
+
+CLI EXECUTION (FOR COMMAND-LINE USERS):
+--------------------------------------------------------------------------------
+You can also run the reconciliation directly from PowerShell:
+  python gst_recon.py --tally <Tally_Export.xlsx> --gstr2b <GSTR2B.xlsx> --out <Report.xlsx>
 
 DETAILED USER GUIDE
 --------------------------------------------------------------------------------

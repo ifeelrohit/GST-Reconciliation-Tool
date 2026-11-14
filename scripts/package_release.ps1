@@ -1,4 +1,5 @@
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 
 $ProjectRoot = "C:\GST-Reconciliation-Tool-main"
 $Staging = Join-Path $ProjectRoot "staging_package"
@@ -11,6 +12,7 @@ New-Item -ItemType Directory -Path $Staging -Force | Out-Null
 
 Write-Host "2. Copying binaries and documentation..."
 Copy-Item (Join-Path $ProjectRoot "dist\GST-Reconciliation-Tool.exe") -Destination $Staging
+Copy-Item (Join-Path $ProjectRoot "gst_recon.py") -Destination $Staging
 Copy-Item (Join-Path $ProjectRoot "Run-GST-Tool.bat") -Destination $Staging
 Copy-Item (Join-Path $ProjectRoot "Run-GST-Tool.vbs") -Destination $Staging
 Copy-Item (Join-Path $ProjectRoot "ACCOUNTANT-INSTRUCTIONS.txt") -Destination $Staging

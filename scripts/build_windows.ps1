@@ -61,7 +61,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # 4. Run Automated Test Suite
 Write-Host "[4/6] Executing automated test suite..." -ForegroundColor Yellow
-& $VenvPython -m unittest tests/test_ledger_recon.py -v
+& $VenvPython -m unittest discover tests -v
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Automated test suite failed! Halting build."
     exit 1
@@ -81,6 +81,7 @@ Write-Host "[5/6] Building standalone executable with PyInstaller..." -Foregroun
     --hidden-import xlrd `
     --hidden-import reconcile `
     --hidden-import ledger_recon `
+    --hidden-import gst_recon `
     src\gst_recon_gui.py
 
 if ($LASTEXITCODE -ne 0) {

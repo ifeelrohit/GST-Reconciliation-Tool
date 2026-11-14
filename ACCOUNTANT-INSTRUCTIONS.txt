@@ -166,7 +166,7 @@ The generated Excel workbook contains nine detailed, audit-friendly worksheets:
 
 
 ================================================================================
-WORKFLOW B: GST PORTAL RECONCILIATION (GSTR-2B VS TALLY)
+WORKFLOW B: GST PORTAL RECONCILIATION (GSTR-2B VS TALLY PURCHASE REGISTER)
 ================================================================================
 
 1. SELECT WORKFLOW:
@@ -174,15 +174,68 @@ WORKFLOW B: GST PORTAL RECONCILIATION (GSTR-2B VS TALLY)
    (•) GST Portal Reconciliation (GSTR-2B Portal Download vs Tally Purchase Register)
 
 2. REQUIRED INPUT FILES:
-   - File 1: Official GSTR-2B Excel workbook (.xlsx) downloaded from the GST Portal.
-   - File 2: Tally "GSTR-3B - Voucher Register" export (.xls or .xlsx).
+   - File 1 (or 2): Official GSTR-2B Excel workbook (.xlsx) downloaded from the GST Portal.
+     Must contain the standard sheets: 'B2B' and optionally 'B2B-CDNR'.
+     Uses the official two-row portal header (identified by "GSTIN of supplier").
+   - File 2 (or 1): Tally Purchase Register export (.xlsx or .xls).
+     Exported from Tally Prime / ERP 9 (Voucher Register or Detailed Purchase Register).
+     Maps columns dynamically by header name across the first 60 rows:
+     'Date', 'Particulars', 'Voucher Type', 'Voucher No.', 'Supplier Invoice No.',
+     'GSTIN/UIN', 'Value' (Taxable), 'Gross Total', '* INPUT' tax columns, and 'Round Off'.
+   *Note: Files are auto-detected; you can select them in either order.
 
-3. CLICK "GENERATE RECONCILIATION REPORT":
-   Produces `GST_Recon_Report_<YYYYMMDD_HHMMSS>.xlsx` containing:
-   - 'Summary': Net comparison of eligible ITC across IGST, CGST, SGST, and Cess.
-   - 'In 2B not in Tally': Invoices uploaded by vendors on the portal but not claimed in books.
-   - 'In Tally not in 2B': Invoices claimed in purchase register but missing from portal GSTR-2B.
-   - 'Near matches': Invoices with matching tax amounts but minor rounding differences in taxable value.
+3. COMMAND-LINE (CLI) EXECUTION OPTION:
+   Power users can also run the reconciliation engine directly from PowerShell:
+     python gst_recon.py --tally <Tally_Export.xlsx> --gstr2b <GSTR2B.xlsx> --out <Report.xlsx>
+
+4. MATCHING RULES (4 PASSES IN STRICT ORDER):
+   - Pass 1 (Exact Match):
+     Same supplier GSTIN and identical normalized invoice number (alphanumeric only,
+     uppercase, leading zeros stripped).
+   - Pass 2 (Partial Substring Match):
+     Same GSTIN, invoice number substring contained (minimum 3 characters), and
+     total GST difference within 2x tolerance (default ₹2.00).
+   - Pass 3 (Amount + Date Match):
+     Same supplier PAN (GSTIN characters 3-12), total GST difference within tolerance (₹1.00),
+     gross total difference within tolerance + 0.5 (₹1.50), and document date within 10 days.
+     Handles cases where suppliers alter invoice prefixes or numbering formats.
+   - Pass 4 (Taxable Value Only Match):
+     Same supplier PAN, taxable value within tolerance (₹1.00), document date within 10 days,
+     even if tax amounts diverge (e.g. rate or classification disputes).
+
+5. ARITHMETIC SANITY GATES & CONTROLS:
+   - Row-level validation: Value + Taxes + Round Off = Gross Total (tolerance ₹1.00).
+     If >20% of rows fail arithmetic check, the run aborts with a ParseError to prevent
+     generating invalid reports from corrupted or misaligned exports.
+   - Strict Tax vs Ledger isolation: Only headers containing CGST/SGST/IGST AND 'INPUT'
+     are parsed as taxes. General purchase ledgers (e.g., 'PURCHASE GST', 'PURCHASE IGST')
+     are strictly treated as purchase ledgers, never as taxes.
+   - Clean data: Automatically filters out '(cancelled)' vouchers, routes RCM vouchers
+     to a separate list, strips trailing dots/commas from voucher numbers, and retains
+     invoice numbers as text.
+
+6. STRUCTURE OF THE GENERATED GSTR-2B AUDIT REPORT:
+   Produces `GST_Recon_Report_<YYYYMMDD_HHMMSS>.xlsx` containing 3 dedicated worksheets:
+
+   A. 'Summary':
+      - Status Breakdown Table: Counts, Taxable Value, CGST, SGST, IGST, Total GST, Gross Total.
+      - Official ITC Bridge: Reconciles Tally claimed ITC to GSTR-2B Net Available ITC
+        (Gross ITC minus Credit Notes) and ties out against the official portal
+        'ITC Available' summary (Part A minus Part B) with an exact difference of ₹0.00.
+      - Key Audit Findings: Automatically calls out invoice number discrepancies, missing
+        vendor filings requiring GSTR-1 follow-ups, and data quality flags.
+
+   B. 'Reco Detail':
+      - Complete 25-column side-by-side audit register for every single document.
+      - Displays Status, Supplier GSTIN, Trade Name, Tally & 2B Document Numbers, Dates,
+        Taxable Values, CGST, SGST, IGST, Total GST, Gross Total, Value Differences
+        computed with live Excel formulas (=K# - V#), Remarks, and Recommended Action.
+      - Formatted in Indian Rupee currency (₹#,##0.00) with frozen headers and auto-filters.
+
+   C. 'Data Quality':
+      - Complete audit trail of row-level arithmetic checks, misclassified purchase ledgers,
+        and cancelled vouchers.
+      - Explains any warnings or non-empty portal amendment / ineligible sheets.
 
 
 ================================================================================

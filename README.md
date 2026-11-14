@@ -7,16 +7,41 @@
 
 ---
 
-## ⚡ Download and Run on Windows — No Python Required
+## ⚡ Quick Start: Run on Windows — No Python Required
 
 > [!IMPORTANT]
-> If you are an accountant, auditor, or business owner, you **do not need to install Python, configure command-line tools, or install libraries**. 
-> The application is distributed as a pre-compiled, standalone Windows desktop executable ready for immediate use.
+> If you are an accountant, auditor, tax consultant, or business owner, you **do not need to install Python or configure any programming environment**. 
+> The application is distributed as a pre-compiled, standalone Windows desktop workstation ready for immediate use.
 
-### Quick Start in 3 Steps:
-1. **Download the ZIP**: Go to the [Official GitHub Releases](https://github.com/ifeelrohit/GST-Reconciliation-Tool/releases) and download `GST-Reconciliation-Tool-Windows-x64.zip`.
-2. **Extract All**: Right-click the downloaded ZIP file and click **Extract All...**.
-3. **Launch**: Double-click `GST-Reconciliation-Tool.exe` inside the extracted folder to start reconciling your ledgers immediately.
+### 3-Step Launch:
+1. **Download the ZIP**: Go to the **[Official GitHub Releases](https://github.com/ifeelrohit/GST-Reconciliation-Tool/releases)** and download `GST-Reconciliation-Tool-Windows-x64.zip`.
+2. **Extract All**: Right-click the downloaded ZIP file and select **Extract All...**. *(Do not run directly from inside the compressed zip folder).*
+3. **Launch**: Double-click `GST-Reconciliation-Tool.exe` inside the extracted folder to start reconciling your data immediately.
+
+---
+
+## 📖 Table of Contents
+- [1. What Is This Tool?](#1-what-is-this-tool)
+- [2. How to Use: GST Portal Inward ITC Reconciliation (GSTR-2B vs Tally)](#2-how-to-use-gst-portal-inward-itc-reconciliation-gstr-2b-vs-tally)
+  - [Step 1: Exporting Your Files](#step-1-exporting-your-files-gst-portal--tally)
+  - [Step 2: Reconciling via Desktop GUI](#step-2-reconciling-via-desktop-gui)
+  - [Step 3: Reconciling via Command-Line (CLI)](#step-3-reconciling-via-command-line-cli)
+  - [The 4-Pass Matching Engine](#the-4-pass-matching-engine)
+  - [Accounting Sanity Gates & Controls](#accounting-sanity-gates--controls)
+  - [Understanding the 3 GSTR-2B Worksheets](#understanding-the-3-gstr-2b-worksheets)
+- [3. How to Use: Ledger-to-Ledger Commercial Reconciliation (Books vs Party Statement)](#3-how-to-use-ledger-to-ledger-commercial-reconciliation-books-vs-party-statement)
+  - [Step 1: Exporting Your Files](#step-1-exporting-your-files-ledger-reconciliation)
+  - [Step 2: Reconciling via Desktop GUI](#step-2-reconciling-via-desktop-gui-1)
+  - [Understanding the 9 Ledger Worksheets](#understanding-the-9-ledger-worksheets)
+  - [Accounting Sign Conventions & TDS Section 194Q](#accounting-sign-conventions--tds-section-194q)
+- [4. How to Share the Tool With Others (Without Large Email Attachments)](#4-how-to-share-the-tool-with-others-without-large-email-attachments)
+- [5. Application Screenshots](#5-application-screenshots)
+- [6. System Requirements](#6-system-requirements)
+- [7. Privacy, Security & SmartScreen Notice](#7-privacy-security--smartscreen-notice)
+- [8. Troubleshooting Common Issues](#8-troubleshooting-common-issues)
+- [9. Developer Setup, Tests, and Build Instructions](#9-developer-setup-tests-and-build-instructions)
+- [10. Demonstration Workbooks](#10-demonstration-workbooks)
+- [11. License and Support](#11-license-and-support)
 
 ---
 
@@ -26,244 +51,313 @@ The **GST & Accounting Ledger Reconciliation Tool** is an audit-grade desktop wo
 
 The software operates two distinct, non-overlapping reconciliation engines:
 
-1. **Ledger-to-Ledger Reconciliation (Books vs Party Statement)**:
-   - Reconciles your internal accounting ledger (*"In Our Books"*, e.g., Tally account export) against an external statement from a vendor or customer (*"Party Statement"*, e.g., SAP, Oracle, or custom ERP ledger).
+1. **GST Portal Inward ITC Reconciliation (GSTR-2B vs Tally Purchase Register)**:
+   - Reconciles official GST Portal GSTR-2B inward supplies downloads against your internal Tally purchase voucher register.
+   - Executes a cascading 4-pass matching algorithm (exact invoice number, partial substring, amount + date with same PAN, and taxable value).
+   - Generates an official **ITC Bridge** that mathematically ties internal claimed ITC directly to the GST Portal summary with an exact nil variance (₹0.00 difference).
+2. **Ledger-to-Ledger Reconciliation (Books vs Party Statement)**:
+   - Reconciles your internal accounting ledger (*"In Our Books"*, e.g., Tally debtor/creditor ledger) against an external statement from a vendor or customer (*"Party Statement"*, e.g., SAP FBL1N/FBL5N, Oracle, or ERP export).
    - Generates an explainable, audit-friendly **9-worksheet Excel reconciliation workbook** with full transaction-level traceability.
    - Segregates complex accounting entries including statutory TDS under Section 194Q, cash discounts, debit/credit notes, grouped payment clearances, and multi-account opening balance variances.
-2. **GST Portal Inward ITC Reconciliation (GSTR-2B vs Tally Register)**:
-   - Reconciles official GST Portal GSTR-2B inward supplies downloads against an internal Tally purchase voucher register.
-   - Compares eligible Input Tax Credit (ITC) broken down by tax head (IGST, CGST, SGST, Cess) and flags unmatched entries.
 
 > [!NOTE]
 > **Important Distinction**: Ledger-to-Ledger reconciliation verifies commercial balance agreement and cash settlement between trading entities; it does **not** evaluate or determine statutory GST Input Tax Credit (ITC) eligibility under Section 16(2) of the CGST Act. The GST Portal reconciliation mode must be used for GSTR-2B inward tax credit audits.
 
 ---
 
-## 2. Download the Windows Application
+## 2. How to Use: GST Portal Inward ITC Reconciliation (GSTR-2B vs Tally)
 
-Official, verified binary packages are published directly on GitHub Releases:
+Use this workflow for monthly or quarterly GST audits to verify that suppliers have filed their GSTR-1 returns, ensuring you do not lose Input Tax Credit (ITC).
 
-🔗 **[Download Latest Windows Release (GitHub Releases)](https://github.com/ifeelrohit/GST-Reconciliation-Tool/releases)**
+### Step 1: Exporting Your Files (GST Portal & Tally)
 
-Download the pre-packaged archive:
-* **Package Name**: `GST-Reconciliation-Tool-Windows-x64.zip`
-* **Target Architecture**: 64-bit Windows 10 / Windows 11 (x64)
+#### A. Download Official GSTR-2B from the GST Portal:
+1. Log in to the [GST Portal (gst.gov.in)](https://www.gst.gov.in/).
+2. Navigate to: **Services** > **Returns** > **Returns Dashboard**.
+3. Select your **Financial Year** and **Return Filing Period** (e.g. *October 2026*), then click **Search**.
+4. In the **Auto-drafted ITC Statement for the month GSTR-2B** tile, click **Download**.
+5. Click **Download Excel** to save the `.xlsx` file (e.g., `GSTR2B_23AAECA2339R1ZH_202610.xlsx`).
+   > *Note:* The tool automatically reads sheets `B2B` and `B2B-CDNR` using the official two-row header structure (identified by `"GSTIN of supplier"`). It also checks the portal summary `ITC Available` sheet for verification.
 
-### What the Download Package Contains:
-* `GST-Reconciliation-Tool.exe` — Standalone graphical workstation.
-* `ACCOUNTANT-INSTRUCTIONS.txt` — Complete accounting handbook detailing worksheet interpretations, sign conventions, and reconciliation rules.
-* `README-WINDOWS.txt` — Quick offline installation and launch instructions.
-* `SHA256SUMS.txt` — Cryptographic checksum manifest to verify file authenticity and integrity.
-
----
-
-## 3. Extract and Launch
-
-Follow this step-by-step workflow:
-
-1. **Download**: Save `GST-Reconciliation-Tool-Windows-x64.zip` to your computer (e.g. `Downloads` folder).
-2. **Extract**: Right-click the `.zip` file, select **Extract All...**, choose a destination folder, and click **Extract**. *(Do not run directly from inside the compressed zip folder).*
-3. **Launch**: Double-click `GST-Reconciliation-Tool.exe`.
-4. **Choose Mode**: Select either **Ledger-to-Ledger Reconciliation** or **GST Portal Reconciliation** at the top of the window.
-5. **Select Input Files**: Click **Browse...** to select your two Excel workbooks.
-6. **Inspect Workbooks**: Click **🔍 Inspect & Preview Workbooks**. The built-in inspection panel automatically identifies:
-   - Detected source format (.xlsx or .xls) and file size
-   - Sheet names and active sheet
-   - Header row numbers and mapped columns
-   - Total candidate transactions identified
-   - Opening balances and segregated non-transaction rows (blanks, summary totals)
-   - Accounting sign conventions used
-7. **Configure Tolerances**:
-   - *Amount Tolerance (₹)*: Defaults to `1.00` to absorb minor fractional paisa or rupee rounding differences.
-   - *Date Window (Days)*: Defaults to `30` days to allow for supplier transit and bank clearing lag.
-8. **Set Destination**: Choose the directory where your final reconciliation report should be created.
-9. **Generate Report**: Click the green **Generate Reconciliation Report** button. The application processes the records in a responsive background thread with an animated progress bar.
-10. **Review in Excel**: Once notified of completion, open the resulting Excel file to review the detailed worksheets.
+#### B. Export Purchase Register from Tally:
+1. Open your company in **TallyPrime** or **Tally.ERP 9**.
+2. Go to: **Display More Reports** > **Statutory Reports** > **GST Reports** > **GSTR-3B** (or **Purchase Register**).
+3. Set the date period matching your GSTR-2B filing month (`F2: Period`).
+4. Press `Alt + E` (Export) > select **Current** > choose **Format: Excel (Spreadsheet)**.
+5. Save the `.xlsx` or `.xls` file.
+   > *Dynamic Column Detection:* You do not need to rearrange Tally columns manually. The engine dynamically scans the first 60 rows to locate:
+   > - `Date`, `Particulars`, `Voucher Type`, `Voucher No.`, `Supplier Invoice No.`, `GSTIN/UIN`
+   > - `Value` (Taxable Value) and `Gross Total`
+   > - Tax Columns: Automatically recognized when the header contains `CGST`/`SGST`/`IGST` **and** `INPUT` (e.g. `CGST INPUT 9%`, `SGST INPUT 9%`, `IGST INPUT 18%`).
+   > - Ledgers like `PURCHASE GST` or `PURCHASE IGST` are treated strictly as expense/purchase ledgers, never as taxes.
 
 ---
 
-## Application Screenshots
+### Step 2: Reconciling via Desktop GUI
 
-The following screenshots illustrate the genuine desktop application workflow and the resulting audit-grade Excel reconciliation workbooks generated using the included demonstration ledgers.
+1. Launch `GST-Reconciliation-Tool.exe`.
+2. At the top of the window, select the radio button:
+   ```
+   (•) GST Portal Reconciliation (GSTR-2B Portal Download vs Tally Purchase Register)
+   ```
+3. In **File 1** and **File 2**, click **Browse...** to select your Tally Purchase Register and GSTR-2B Portal workbook. *(Order does not matter; the tool auto-detects each file's role).*
+4. (Optional) Click **🔍 Inspect & Preview Workbooks** to preview detected sheets, header rows, candidate transaction counts, and data sanity checks.
+5. Set your tolerances:
+   - **Amount Tolerance (₹)**: Default `1.00` (absorbs minor rounding differences).
+   - **Date Tolerance (Days)**: Default `30` days.
+6. Select your **Destination Folder**.
+7. Click the green **Generate Reconciliation Report** button.
+8. Once processing finishes, open the resulting `GST_Recon_Report_<Timestamp>.xlsx` in Microsoft Excel.
+
+---
+
+### Step 3: Reconciling via Command-Line (CLI)
+
+For command-line users, automated batch processing, or scheduled cron workflows, you can run the reconciliation engine directly from PowerShell or Command Prompt:
+
+```powershell
+python gst_recon.py --tally "path\to\Tally_Purchase_Register.xlsx" --gstr2b "path\to\GSTR2B_Portal.xlsx" --out "GST_Recon_Report.xlsx"
+```
+
+#### Available CLI Arguments:
+- `--tally <path>`: Path to Tally purchase register Excel workbook (Required).
+- `--gstr2b <path>`: Path to official GSTR-2B Excel workbook (Required).
+- `--out <path>`: Path for the generated Excel reconciliation report (Default: `GST_Recon_Report.xlsx`).
+- `--tol <amount>`: Monetary tolerance in INR (Default: `1.00`).
+- `--date-tol <days>`: Document date window in days (Default: `10` days).
+- `--quiet`: Suppress terminal summary printing.
+
+---
+
+### The 4-Pass Matching Engine
+
+The reconciliation engine processes documents through a cascading 4-pass match sequence:
+
+| Pass | Method | Matching Criteria | Applied When |
+| :---: | :--- | :--- | :--- |
+| **Pass 1** | **Exact Match** | Same supplier GSTIN + identical normalized invoice number (`norm_inv`: uppercase, alphanumeric only, leading zeros stripped). | Standard invoice recorded accurately in both systems. |
+| **Pass 2** | **Partial Substring Match** | Same GSTIN + invoice number substring contained (minimum 3 characters) + GST difference within $2 \times \text{tolerance}$ (₹2.00). | Tally recorded `1599` while GSTR-2B recorded `2026/351` or `INV-1599`. |
+| **Pass 3** | **Amount + Date Match** | Same supplier PAN (characters 3–12 of GSTIN) + GST diff within tolerance (₹1.00) + gross diff within tolerance + ₹0.50 + date within 10 days. | Supplier changed invoice numbering scheme or prefix (e.g. Tally recorded `999`, 2B recorded `26270099HVL00999`). |
+| **Pass 4** | **Taxable Value Only Match** | Same supplier PAN + taxable value within tolerance (₹1.00) + date within 10 days + tax amounts differ. | Rate dispute, HSN tax rate discrepancy, or tax classification mismatch. |
+
+---
+
+### Accounting Sanity Gates & Controls
+
+To guarantee that a report is never generated on corrupted or misaligned data, the engine enforces strict sanity controls:
+
+1. **Row Arithmetic Validation**: Validates `Value + Taxes + Round-off = Gross Total` (tolerance ₹1.00). If $>20\%$ of rows fail, the tool **aborts with a `ParseError` (exit code 3)** to prevent misleading reports.
+2. **Tax vs Purchase Ledger Isolation**: Only columns containing `CGST`/`SGST`/`IGST` **and** `INPUT` are parsed as taxes. Generic ledgers (such as `PURCHASE GST`, `PURCHASE IGST`, or discount ledgers) are never treated as tax.
+3. **Data Cleansing**:
+   - Vouchers marked `(cancelled)` in Particulars are automatically excluded.
+   - Vouchers under `PURCHASE_EXP` or `RCM/...` are routed to a separate RCM list.
+   - Hidden Excel carriage returns (`_x000D_`) and newlines are sanitized.
+   - Trailing punctuation (dots/commas) is stripped from voucher numbers while retaining invoice numbers strictly as text.
+4. **Official GSTR-2B Portal Tie-Out**: Computes Gross Available ITC minus Credit Notes and compares it directly with the portal's `ITC Available` summary (Part A minus Part B). **The difference must tie out to exactly ₹0.00**.
+
+---
+
+### Understanding the 3 GSTR-2B Worksheets
+
+The generated report `GST_Recon_Report_<Timestamp>.xlsx` consists of three dedicated audit sheets:
+
+#### 1. `Summary` Sheet
+- **Status Table**: Document count, Taxable Value, CGST, SGST, IGST, Total GST, and Gross Total for each status category.
+- **ITC Bridge Table**: Reconciles Tally Claimed ITC to GSTR-2B Net Available ITC and ties back to the portal's summary sheet:
+  $$\text{Tally GST} - \text{Books Only} + \text{2B Only} - \text{Diff} = \text{GSTR-2B Net GST}$$
+  $$\text{Portal Tie-Out Difference} = \mathbf{₹0.00}$$
+- **Key Audit Findings**: Plain-language commentary highlighting invoice number discrepancies, missing vendor filings requiring GSTR-1 follow-ups, and accounting misclassifications.
+
+#### 2. `Reco Detail` Sheet
+- Complete 25-column side-by-side register of every inward transaction.
+- Includes: Status, Supplier GSTIN, Trade Name, Tally Vch No., Supplier Inv No., 2B Inv No., Dates, Taxable Values, CGST, SGST, IGST, Total GST, Gross Total.
+- **Live Excel Formulas**: Variance columns utilize `=K# - V#` formulas so edits or adjustments automatically update in Excel.
+- **Remarks & Actions**: Actionable recommendations (e.g. *"Invoice number format differs; verify with supplier bill"*, *"Follow up with supplier to file GSTR-1"*).
+- Styled with Indian Rupee formatting (`₹#,##0.00`), frozen header row, and auto-filters.
+
+#### 3. `Data Quality` Sheet
+- Complete audit register logging arithmetic check failures, misclassified purchase ledgers, and excluded cancelled vouchers.
+- Provides row numbers, voucher references, and audit explanations.
+
+---
+
+## 3. How to Use: Ledger-to-Ledger Commercial Reconciliation (Books vs Party Statement)
+
+Use this workflow to reconcile commercial balances with your vendors or customers, agree upon closing ledger balances, and clear audit schedules.
+
+### Step 1: Exporting Your Files (Ledger Reconciliation)
+
+#### A. Internal Ledger ("In Our Books"):
+- Export your party ledger from Tally, Busy, or your internal ERP for the desired financial period.
+- Required columns: `Date`, `Particulars`, `Vch Type`, `Vch No.`, `Debit`, `Credit`.
+- *Note:* Company address blocks, header rows, blank lines, and opening balance rows are automatically segregated.
+
+#### B. External Statement ("Party Statement"):
+- Obtain the ledger statement from the external party (e.g. SAP FBL1N vendor statement or FBL5N customer statement).
+- Required columns: `Assignment`, `Account`, `Document Type`, `Document Number`, `Reference`, `Document Date`, `Amount in local currency`.
+- *Note:* Statements consolidating multiple account divisions (e.g. Bangalore and Bhopal billing branches) are automatically separated.
+
+---
+
+### Step 2: Reconciling via Desktop GUI
+
+1. Launch `GST-Reconciliation-Tool.exe`.
+2. Select the radio button:
+   ```
+   (•) Ledger-to-Ledger Reconciliation (Our Books vs Vendor/Party Statement)
+   ```
+3. Browse and select your internal ledger and the external party statement. *(Smart auto-orientation detects the correct file roles even if selected in reverse).*
+4. Click **🔍 Inspect & Preview Workbooks** to review opening balances, transaction counts, and detected column mappings.
+5. Set your tolerances (defaults: ₹1.00 and 30 days).
+6. Click **Generate Reconciliation Report**.
+7. Open `Ledger_Recon_Report_<Timestamp>.xlsx` in Microsoft Excel.
+
+---
+
+### Understanding the 9 Ledger Worksheets
+
+The commercial ledger reconciler produces a 9-worksheet audit workbook:
+
+| Worksheet Name | Contents & Purpose |
+| :--- | :--- |
+| **1. Executive Summary** | High-level financial table comparing Opening Balances, Purchases, Payments, TDS, Discounts, Notes, and Closing Balances for both sides. Includes commercial status rating and executive takeaways. |
+| **2. Matched Transactions** | 29-column side-by-side audit schedule displaying internal voucher details against party statement details, date lag, matching rule applied, review status, and next actions. |
+| **3. In Our Books Only** | Internal vouchers without an external counterpart. Classifies items (e.g. Purchase, Payment, Section 194Q TDS Deduction, Cash Discount) and provides plain-English audit reasons. |
+| **4. In Party Statement Only** | External statement items not in internal books (e.g. unrecorded vendor invoices, bank clearing entries). Recommends verification steps such as checking Goods Receipt Notes (GRN). |
+| **5. Amount Differences** | Transactions correlated by document reference where values diverge beyond tolerance. Displays internal amount, external amount, absolute difference, and percentage variance. |
+| **6. Possible Duplicates** | Flags repeated document numbers across rows or identical transaction amounts booked on the same date to identify duplicate entries or payments. |
+| **7. Opening & Balance Variance** | In-depth breakdown reconciling opening balance variance, net period movement variance, and closing balance variance: $\text{Opening Var} + \text{Movement Var} = \text{Closing Var}$. |
+| **8. Review Actions** | Prioritized action register with Action IDs, issue category, referenced documents, amounts, and step-by-step resolution notes for audit teams. |
+| **9. Data Quality** | Complete traceability log of every non-transaction row excluded from the engine (headers, address blocks, summary totals, opening balance rows, blank rows). Guarantees **zero source rows disappear silently**. |
+
+---
+
+### Accounting Sign Conventions & TDS Section 194Q
+
+#### Sign Conventions:
+- **Buyer's Books**: Credit = Inward Invoice / Liability (+); Debit = Payment / TDS Withholding / Adjustment (-).
+- **Vendor Statement**: Positive = Billed Invoice / Receivable (+); Negative = Payment / Credit Note (-).
+
+#### Statutory TDS (Section 194Q):
+TDS deducted by buyers under Section 194Q of the Income Tax Act is automatically classified and segregated. Because vendors bill gross amounts prior to tax withholding, TDS entries appear in `In Our Books Only` with instructions to issue Form 16A TDS certificates to the vendor.
+
+---
+
+## 4. How to Share the Tool With Others (Without Large Email Attachments)
+
+Email providers (such as Gmail or Outlook) frequently block `.exe` files or attachments exceeding 25 MB. To share this tool with colleagues, accountants, or clients easily:
+
+1. **Option 1 (Recommended — Send the Official GitHub Link):**
+   Share the permanent direct download link:
+   👉 **[https://github.com/ifeelrohit/GST-Reconciliation-Tool/releases/latest](https://github.com/ifeelrohit/GST-Reconciliation-Tool/releases/latest)**  
+   The user simply clicks the link and downloads `GST-Reconciliation-Tool-Windows-x64.zip`.
+
+2. **Option 2 (Internal Cloud Drive):**
+   Download `GST-Reconciliation-Tool-Windows-x64.zip` and upload it to your company Google Drive, OneDrive, or Dropbox. Share the download link within your team.
+
+3. **Option 3 (Lightweight Python CLI):**
+   If sharing with a colleague who has Python installed, you only need to send the single file `gst_recon.py` (~30 KB). They can run:
+   ```powershell
+   pip install openpyxl
+   python gst_recon.py --tally <tally.xlsx> --gstr2b <2b.xlsx>
+   ```
+
+---
+
+## 5. Application Screenshots
 
 ### 1. Main Application Interface
-The launch interface provides one-click switching between Ledger-to-Ledger commercial reconciliation and GST Portal Inward ITC tax credit audits, with customizable amount and date tolerance thresholds.
-
+One-click switching between Ledger-to-Ledger commercial reconciliation and GST Portal Inward ITC audits.
 ![Main Application Interface](screenshots/01-main-interface.png)
 
 ### 2. Pre-Reconciliation Workbook Inspection
-Before running reconciliation, the interactive inspection panel validates workbook structure, identifies active worksheets, detects header rows, parses opening balances, and confirms accounting sign conventions.
-
+Interactive inspection panel validating sheet structures, header detection, candidate rows, and opening balances.
 ![Workbook Inspection and Validation](screenshots/02-workbook-inspection.png)
 
 ### 3. Ledger-to-Ledger Reconciliation Workflow
-Books vs Party Statement mode configured with internal and external demonstration ledgers, tolerance windows (₹1.00, 30 days), and output destination folder.
-
+Books vs Party Statement setup with demonstration ledgers, customizable tolerance windows, and destination path.
 ![Ledger-to-Ledger Reconciliation Setup](screenshots/03-ledger-reconciliation.png)
 
 ### 4. Executive Summary Worksheet
-The generated Excel workbook opens with a comprehensive Executive Summary featuring the commercial status badge, financial comparison statement, and opening/closing balance variance analysis.
-
+High-level financial summary featuring commercial status badge, financial movement comparison, and variance analysis.
 ![Executive Summary Worksheet](screenshots/05-executive-summary.png)
 
 ### 5. Matched Transactions Audit Trail
-Complete 29-column side-by-side transaction audit trail displaying matching confidence tiers (Tier 1 exact, Tier 2 settlement, Tier 3 multi-reference), applied matching rules, and plain-English verification explanations.
-
+Side-by-side transaction audit trail displaying matching confidence tiers, applied rules, and verification explanations.
 ![Matched Transactions Audit Trail](screenshots/06-matched-transactions.png)
 
 ### 6. Unmatched Transactions & Section 194Q TDS Analysis
-Internal ledger vouchers requiring accountant review are segregated into the `In Our Books Only` worksheet, complete with statutory classification (such as Section 194Q TDS withholding) and recommended next actions.
-
+Internal vouchers requiring accountant review, complete with statutory classification (such as Section 194Q TDS) and recommended next actions.
 ![Unmatched Transactions Review](screenshots/07-unmatched-review.png)
 
 ### 7. Data Quality & Ingestion Audit Log
-Full audit traceability identifying segregated opening balance lines and excluded summary total rows, with source line numbers, raw contents, and handling actions taken.
-
+Source row traceability identifying segregated opening balance lines and excluded summary total rows.
 ![Data Quality and Ingestion Audit Log](screenshots/08-data-quality.png)
 
 ### 8. GST Portal Inward ITC Reconciliation Workflow
-GST Portal mode configured with official GSTR-2B download and Tally purchase register, matching inward ITC by invoice number, vendor GSTIN, and tax components (IGST, CGST, SGST, Cess).
-
+GSTR-2B vs Tally purchase register mode matching inward ITC by invoice number, vendor GSTIN, and tax heads.
 ![GST Portal GSTR-2B Reconciliation](screenshots/04-gst-reconciliation.png)
-
----
-
-## 4. Choose the Correct Mode
-
-The software is engineered with strict format validation to ensure accounting integrity. An arbitrary spreadsheet cannot be reconciled automatically; the source files must correspond to the chosen mode.
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      Select Reconciliation Workflow                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ (•) Ledger-to-Ledger Reconciliation (Our Books vs Vendor/Party Statement)   │
-│ ( ) GST Portal Reconciliation (GSTR-2B Portal vs Tally Purchase Register)   │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Workflow A: Ledger-to-Ledger Reconciliation (Default)
-
-Used when reconciling mutual debtor/creditor ledger accounts between two independent businesses:
-
-* **File 1 (In Our Books)**: Tally or ERP ledger export containing columns: `Date`, `Particulars`, `Vch Type`, `Vch No.`, `Debit`, `Credit`.
-* **File 2 (Party Statement)**: External vendor or customer ERP statement (e.g. SAP FBL1N/FBL5N export) containing columns: `Assignment`, `Account`, `Document Type`, `Document Number`, `Reference`, `Document Date`, `Amount in local currency`.
-* **Accounting Sign Conventions**:
-  - *In Buyer's Books*: Credit = Inward Invoices / Liability (+); Debit = Payments / TDS / Adjustments (-).
-  - *In Vendor's Statement*: Positive = Billed Invoices / Receivables (+); Negative = Payments / Credit Memorandums (-).
-* **Smart Auto-Orientation**: If you select the files in reverse order, the tool automatically detects their internal column signatures and aligns them correctly without throwing an error.
-* **Multi-Account Aggregation**: If a vendor statement consolidates multiple division accounts (e.g. Bangalore and Bhopal billing branches), the engine segregates them individually and tracks their separate opening balances.
-
-### Workflow B: GST Portal Reconciliation
-
-Used when reconciling inward tax credits claimed in your accounting purchase register against supplier filings reflected on the GST Portal:
-
-* **File 1 (GSTR-2B)**: The standard GSTR-2B download workbook (.xlsx) directly from the official GST Portal containing the `B2B` (and optionally `B2B-CDNR`) sheets.
-* **File 2 (Tally Purchase Register)**: Tally *GSTR-3B - Voucher Register* export containing voucher date, supplier name, voucher number, taxable value, and tax amounts.
-
-If an unsupported file format or missing required column is detected, the workstation immediately informs you with a clear diagnostic notice rather than silently guessing or crashing.
-
----
-
-## 5. Understand the Nine Worksheets
-
-Whenever you reconcile two accounting ledgers, the application generates a comprehensive 9-worksheet Excel workbook (`Ledger_Recon_Report_<Timestamp>.xlsx`):
-
-| Worksheet Name | Purpose & Contents |
-| :--- | :--- |
-| **1. Executive Summary** | High-level financial overview designed for executive management and business owners. Contains report metadata, a comparative Financial Table (Opening Balances, Purchases, Payments, TDS, Discounts, Notes, Closing Balances), matching summary metrics, key takeaways, and explicit status ratings. |
-| **2. Matched Transactions** | A comprehensive 29-column side-by-side audit schedule. Displays internal voucher details against party statement details, absolute value difference, date lag (in days), match confidence tier, explicit matching rule applied, review status, and recommended action. |
-| **3. In Our Books Only** | Unmatched internal ledger vouchers. Categorizes entries (e.g. Purchase Invoice, Payment, Statutory Section 194Q TDS Deduction, Cash Discount, Debit Note) and provides specific accounting explanations (e.g. *"Statutory TDS withheld under Section 194Q; vendor ledger reflects gross billings prior to tax deduction"*). |
-| **4. In Party Statement Only** | Unmatched external statement records (e.g. unrecorded vendor invoices, bank clearing entries, delayed credit notes). Recommends practical verification steps such as checking material gate entry records (GRN). |
-| **5. Amount Differences** | Transactions correlated by exact document reference or voucher number where values diverge beyond tolerance. Shows internal amount vs external amount, absolute difference, percentage variance, and adjustment instructions (e.g. rate revisions, freight charges, or price deductions). |
-| **6. Possible Duplicates** | Audit candidate table detecting suspicious repeated document references across multiple rows or identical transaction amounts booked on the exact same date. |
-| **7. Opening & Balance Variance** | In-depth breakdown reconciling the variance between the two sources. Displays opening balances per account, net period transaction movement, net closing balances, and mathematical proof: $\text{Opening Variance} + \text{Movement Variance} = \text{Closing Variance}$. |
-| **8. Review Actions** | A prioritized action register for accountants and audit teams. Lists Action IDs, category, referenced documents, amount involved, plain-language explanation, and step-by-step resolution notes. |
-| **9. Data Quality** | Complete traceability log of every non-transaction row excluded from the matching engine (header lines, company address blocks, summary total rows, segregated opening balances, and blank rows) with exact line numbers and reasons. Guarantees that **zero source rows disappear silently**. |
 
 ---
 
 ## 6. System Requirements
 
-The standalone executable has been tested and verified under real accounting conditions:
-
-* **Operating System**: 64-bit Windows 10 or 64-bit Windows 11.
-  *(Note: A 64-bit executable does not run natively on legacy 32-bit Windows operating systems).*
-* **Processor / RAM**: Modern x64 processor; minimum 2 GB RAM (4 GB recommended when processing ledgers exceeding 25,000 rows).
-* **Disk Space**: ~100 MB free hard drive space for the extracted application.
-* **Spreadsheet Software**: Microsoft Excel (2013, 2016, 2019, 2021, Microsoft 365), LibreOffice Calc, or Google Sheets to open and review the generated `.xlsx` reports. *(Microsoft Excel is not required to run the tool, only to view output files).*
-* **Network / Internet**: **None required**. The tool is a 100% offline desktop application. No data is sent over the internet.
+- **Operating System**: 64-bit Windows 10 or 64-bit Windows 11.
+- **Processor / RAM**: Modern x64 processor; minimum 2 GB RAM (4 GB recommended for ledgers > 25,000 rows).
+- **Disk Space**: ~100 MB free hard drive space.
+- **Spreadsheet Viewer**: Microsoft Excel (2013 or newer), LibreOffice Calc, or Google Sheets to view generated reports. *(Excel is not required to run the tool)*.
+- **Network / Internet**: **None required**. The tool operates 100% offline.
 
 ---
 
-## 7. Privacy and Security
+## 7. Privacy, Security & SmartScreen Notice
 
-Accounting data is strictly confidential. The software adheres to strict data privacy practices:
-
-* **100% Local Execution**: All parsing, matching, and report generation take place entirely on your local machine. No accounting records, customer names, financial transactions, or taxpayer identifiers are ever uploaded to any external server or cloud service.
-* **No Telemetry or Tracking**: The application contains no background analytics, trackers, or telemetry beacons.
-* **Safe Sharing**: Never upload your raw accounting books or confidential client statements to public repositories or issue trackers. You only need to distribute the application executable.
-* **Spreadsheet Security (Formula Injection CWE-1236)**: Untrusted text cells from external statements that start with formula trigger characters (`=`, `+`, `-`, `@`, `\t`, `\r`) are automatically escaped with a leading single quote (`'`), protecting your computer against Excel Dynamic Data Exchange (DDE) formula injection attacks.
-* **Windows SmartScreen Notice**: Because this application is newly released and open-source (not signed with an expensive commercial Extended Validation code-signing certificate), Windows SmartScreen may display:
+- **100% Local Execution**: All computations run locally on your PC. No accounting entries, client names, or financial numbers are transmitted across the network.
+- **Spreadsheet Security (CWE-1236 Formula Injection Protection)**: External text starting with `=`, `+`, `-`, or `@` is automatically sanitized with a leading `'` to prevent DDE formula execution in Excel.
+- **Windows SmartScreen Notice**: Because this application is an open-source project without an expensive commercial code-signing certificate, Windows SmartScreen may show:
   > *"Windows protected your PC — Microsoft Defender SmartScreen prevented an unrecognized app from starting."*
   
-  To proceed: Click **More info**, verify that the publisher shows the official download, and click **Run anyway**. You can verify that the file has not been altered by checking the cryptographic hash against `SHA256SUMS.txt`.
+  **To Proceed:** Click **More info**, then click **Run anyway**. You can verify file authenticity by checking the cryptographic hash against `SHA256SUMS.txt`.
 
 ---
 
-## 8. Accuracy and Accounting Review
-
-Automatic algorithmic reconciliation assists the accounting process but does not replace professional judgment:
-
-* **Matching Suggestions**: Proposed matches are rule-based recommendations. A matching monetary amount alone does not prove that two entries represent the same legal transaction.
-* **Verification Required**: Matches marked with confidence `Probable` or status `Requires Verification` must be checked against physical bills, transport receipts, or bank remittance advices.
-* **Opening Balances**: Discrepancies in historical opening balances carry forward directly into closing balances. The tool explicitly segregates opening differences from current-period movement differences so you know where the variance originated.
-* **Net Balance Caveat**: A closing balance difference of ₹0.00 does **not** automatically mean every transaction is reconciled; offsetting unmatched items (e.g., an unrecorded purchase offset by an unrecorded payment) will cause the application to assign the explicit status:
-  `REVIEW REQUIRED — BALANCES AGREE BUT OFFSETTING TRANSACTIONS REMAIN`.
-
----
-
-## 9. Troubleshooting
+## 8. Troubleshooting Common Issues
 
 | Issue | Cause | Solution |
 | :--- | :--- | :--- |
-| **Application does not launch** | 32-bit Windows OS or blocked download. | Confirm your Windows system is 64-bit (*Settings > System > About*). Right-click the `.exe`, select *Properties*, and check *Unblock* if available. |
-| **SmartScreen warning appears** | Unsigned open-source binary. | Click **More info** on the blue dialog, then click **Run anyway**. |
-| **"Permission denied" / Output cannot be written** | The previous reconciliation report is currently open in Microsoft Excel. | Close the report in Microsoft Excel before clicking *Generate Reconciliation Report* so Windows allows file overwriting. |
-| **"Could not locate header row"** | The workbook does not match expected accounting columns. | Click **🔍 Inspect & Preview Workbooks** to review detected headers. Ensure your Tally export contains `Date`, `Particulars`, `Debit`, `Credit` or your party statement contains `Assignment`, `Account`, `Document Number`, `Amount`. |
-| **Numbers formatted as text** | Source ERP exported values with currency symbols, commas, or spaces. | The application automatically cleanses and converts strings like `₹ 1,23,456.00` into floating-point numbers. |
+| **"Permission denied" / Output cannot be written** | The previous report is currently open in Microsoft Excel. | Close the workbook in Microsoft Excel before clicking *Generate Reconciliation Report*. |
+| **Windows SmartScreen / Smart App Control** | Unsigned open-source binary. | Click *More info* > *Run anyway*, or launch via `Run-GST-Tool.bat` in the project root. |
+| **"Could not locate header row"** | File format does not match expected headers. | Click *🔍 Inspect & Preview Workbooks* to check headers. Ensure Tally export has `Date`, `Particulars`, `Voucher No.`, `Gross Total` or Party statement has `Assignment`, `Account`, `Document Number`, `Amount`. |
+| **Generate Button Missing on Laptop** | High DPI scaling (125% or 150%) on smaller laptop screens. | The action bar is permanently pinned at the bottom. Scroll down using your mousewheel or resize/maximize the window. |
+| **Numbers formatted as text** | ERP exported amounts with currency symbols or commas. | The application cleanses and converts strings like `₹ 1,23,456.00` into numeric values automatically. |
 
 ---
 
-## 10. Source Code and Developer Setup
-
-Developers wishing to inspect, modify, or compile the codebase from source can do so using the steps below.
+## 9. Developer Setup, Tests, and Build Instructions
 
 ### Prerequisites
-* Windows 10 or 11 (64-bit)
-* Python 3.12 (64-bit)
-* Git
+- Windows 10 or 11 (64-bit)
+- Python 3.12 (64-bit)
+- Git
 
-### Step-by-Step Build Instructions
-
+### Build from Source
 ```powershell
-# 1. Clone the repository
+# 1. Clone repository
 git clone https://github.com/ifeelrohit/GST-Reconciliation-Tool.git
 cd GST-Reconciliation-Tool
 
-# 2. Create a local virtual environment
+# 2. Setup virtual environment
 py -3.12 -m venv .venv
-
-# 3. Activate the virtual environment
 .\.venv\Scripts\Activate.ps1
 
-# 4. Install dependencies
+# 3. Install dependencies
 pip install --upgrade pip
 pip install -r Requirements.txt
 
-# 5. Run the automated test suite
-python -m unittest tests/test_ledger_recon.py -v
+# 4. Run automated test suite (36 tests)
+python -m unittest discover tests -v
 
-# 6. Build the standalone executable
+# 5. Build standalone Windows executable
 pyinstaller --noconfirm --clean --onefile --windowed `
     --name "GST-Reconciliation-Tool" `
     --paths "src" `
@@ -272,33 +366,24 @@ pyinstaller --noconfirm --clean --onefile --windowed `
     --hidden-import xlrd `
     --hidden-import reconcile `
     --hidden-import ledger_recon `
+    --hidden-import gst_recon `
     src\gst_recon_gui.py
 ```
 
-Alternatively, run the automated build script:
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
-```
+---
 
-The resulting standalone executable will be placed in:
-`dist\GST-Reconciliation-Tool.exe`
+## 10. Demonstration Workbooks
+
+Sample demonstration files with **no confidential or real taxpayer data** are provided in the [`Sample Files/`](Sample%20Files/) folder:
+
+- [`Demo_Our_Books_Ledger.xlsx`](Sample%20Files/Demo_Our_Books_Ledger.xlsx): Fictional Tally-style ledger with purchases, payments, TDS 194Q, cash discounts, and debit notes.
+- [`Demo_Vendor_ERP_Statement.xlsx`](Sample%20Files/Demo_Vendor_ERP_Statement.xlsx): Fictional SAP/ERP statement demonstrating matched pairs and unmatched adjustments.
+- [`Demo_GSTR2B_Portal.xlsx`](Sample%20Files/Demo_GSTR2B_Portal.xlsx): Synthetic GSTR-2B inward supplies return.
+- [`Demo_Tally_Purchase_Register.xlsx`](Sample%20Files/Demo_Tally_Purchase_Register.xlsx): Synthetic Tally voucher register.
 
 ---
 
-## 11. Demonstration Workbooks
+## 11. License and Support
 
-The repository includes synthetic demonstration files in the [`Sample Files/`](Sample%20Files/) folder containing **no confidential or real taxpayer information**:
-
-* [`Demo_Our_Books_Ledger.xlsx`](Sample%20Files/Demo_Our_Books_Ledger.xlsx): Fictional Tally-style ledger with purchases, payments, TDS 194Q, cash discounts, and debit notes.
-* [`Demo_Vendor_ERP_Statement.xlsx`](Sample%20Files/Demo_Vendor_ERP_Statement.xlsx): Fictional SAP/ERP statement demonstrating matched pairs and unmatched adjustments.
-* [`Demo_GSTR2B_Portal.xlsx`](Sample%20Files/Demo_GSTR2B_Portal.xlsx): Synthetic GSTR-2B inward supplies return.
-* [`Demo_Tally_Purchase_Register.xlsx`](Sample%20Files/Demo_Tally_Purchase_Register.xlsx): Synthetic Tally voucher register.
-
-You can select these workbooks in the application to test the reconciliation workflows immediately.
-
----
-
-## 12. License and Support
-
-* **License**: Released under the permissive [MIT License](LICENSE).
-* **Issue Tracker**: For bug reports, feature requests, or technical feedback, please submit an issue on the [GitHub Issue Tracker](https://github.com/ifeelrohit/GST-Reconciliation-Tool/issues).
+- **License**: Released under the [MIT License](LICENSE).
+- **Issue Tracker**: Submit bug reports or questions on the [GitHub Issue Tracker](https://github.com/ifeelrohit/GST-Reconciliation-Tool/issues).
