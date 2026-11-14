@@ -635,31 +635,73 @@ class ReconciliationApp:
         self.result_queue.put(("SUCCESS", (summary_msg, output_path)))
 
     def _execute_gstr_recon(self, f1_path, f2_path, out_dir, timestamp):
-        """Execute GSTR-2B Portal vs Tally Register reconciliation."""
-        invoices, cdnr, meta = reconcile.load_2b(f1_path)
-        reg = reconcile.load_register(f2_path)
-        result = reconcile.reconcile(invoices, reg)
+        """Execute GSTR-2B Portal vs Tally Register reconciliation using specification engine."""
+        import openpyxl
+        import datetime as dt
+
+        # Auto-detect which file is GSTR-2B and which is Tally Purchase Register
+        wb1 = openpyxl.load_workbook(f1_path, read_only=True)
+        s1 = wb1.sheetnames
+        wb1.close()
+
+        if "B2B" in s1:
+            gstr_path, tally_path = f1_path, f2_path
+        else:
+            gstr_path, tally_path = f2_path, f1_path
+
+        tally, cancelled, rcm, dq, st = reconcile.parse_tally(tally_path)
+        b2b, cdn, meta, warns, control = reconcile.parse_2b(gstr_path)
+
+        # Sanity gates
+        gates = []
+        if st['rows'] and st['bad'] / st['rows'] > 0.2:
+            gates.append(f"{st['bad']} of {st['rows']} Tally rows fail value+tax=gross check -> column mapping/parsing problem")
+
+        months = [d['date'] for d in tally if d['date']]
+        ref = max(months) if months else dt.date.today()
+        month_end = (ref.replace(day=28) + dt.timedelta(days=4)).replace(day=1) - dt.timedelta(days=1)
+
+        rows = reconcile.build_rows(tally, b2b, cdn, 1.0, 10, month_end)
+        matched = sum(1 for w in rows if w['status'].startswith('Matched'))
+        base = min(len(tally), len([b for b in b2b if not b['rcm']]))
+        if base and matched / base < 0.2:
+            gates.append(f"match rate only {matched}/{base} - almost certainly a parsing/period/company mismatch, not a real reconciliation result")
+
+        if gates:
+            raise reconcile.ParseError("SANITY GATE FAILED (no report written):\n  - " + "\n  - ".join(gates))
 
         out_name = f"GST_Recon_Report_{timestamp}.xlsx"
         output_path = os.path.join(out_dir, out_name)
 
         reconcile.write_report(
             output_path,
+            rows,
+            tally,
+            cancelled,
+            rcm,
+            dq,
             meta,
-            invoices,
-            cdnr,
-            reg,
-            result
+            warns,
+            control,
+            st,
+            1.0
         )
+
+        matched_cnt = sum(1 for w in rows if w['status'].startswith('Matched'))
+        to_cnt = sum(1 for w in rows if w['status'] == reconcile.S_TO)
+        be_cnt = sum(1 for w in rows if w['status'] == reconcile.S_BE)
+        bo_cnt = sum(1 for w in rows if w['status'] == reconcile.S_BO)
 
         summary_msg = (
             f"GST Portal Reconciliation Report Generated Successfully!\n\n"
             f"Saved to:\n{output_path}\n\n"
             f"Summary Results:\n"
-            f"• Invoices in GSTR-2B: {len(invoices)}\n"
-            f"• CDNR Credit/Debit Notes: {len(cdnr)}\n"
-            f"• Tally Vouchers: {len(reg)}\n"
-            f"• Matched Invoices: {result.get('matched_count', 0)}"
+            f"• Tally Purchase Vouchers: {len(tally)} ({len(cancelled)} cancelled, {len(rcm)} RCM)\n"
+            f"• GSTR-2B Documents: {len(b2b)} invoices, {len(cdn)} notes\n"
+            f"• Matched Invoices: {matched_cnt}\n"
+            f"• In Tally, Not in 2B (At Risk): {to_cnt}\n"
+            f"• In 2B, Not in Tally (Unclaimed ITC): {be_cnt + bo_cnt} ({be_cnt} existing, {bo_cnt} other)\n"
+            f"• Data Quality Issues Flagged: {len(dq)}"
         )
         self.result_queue.put(("SUCCESS", (summary_msg, output_path)))
 

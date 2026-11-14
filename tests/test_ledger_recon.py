@@ -486,22 +486,30 @@ class TestLedgerReconciliation(unittest.TestCase):
             info2 = reconcile.inspect_gstr_file(f2_ready)
             self.assertTrue(info1["is_valid"])
             self.assertTrue(info2["is_valid"])
-            self.assertEqual(info1["candidate_count"], 9)
+            self.assertEqual(info1["candidate_count"], 8)
             self.assertEqual(info2["candidate_count"], 8)
 
-            invs, cdnr, meta = reconcile.load_2b(f1)
-            reg = reconcile.load_register(f2_ready)
-            res = reconcile.reconcile(invs, reg)
+            tally, cancelled, rcm, dq, st = reconcile.parse_tally(f2_ready)
+            b2b, cdn, meta, warns, control = reconcile.parse_2b(f1)
+            self.assertEqual(len(tally), 8)
+            self.assertEqual(len(b2b), 8)
 
-            self.assertEqual(res["matched_count"], 7)
-            self.assertEqual(len(res["only_2b"]), 2)
-            self.assertEqual(len(res["only_reg"]), 1)
+            rows = reconcile.build_rows(tally, b2b, cdn, 1.0, 10, datetime(2026, 6, 30).date())
+            cntd = {}
+            for w in rows:
+                cntd[w['status']] = cntd.get(w['status'], 0) + 1
+
+            self.assertEqual(cntd[reconcile.S_M], 7)
+            self.assertEqual(cntd[reconcile.S_TO], 1)
+            self.assertEqual(cntd[reconcile.S_BO], 1)
 
             out_path = os.path.join(self.temp_dir, "GST_Demo_Report.xlsx")
-            reconcile.write_report(out_path, meta, invs, cdnr, reg, res)
+            reconcile.write_report(out_path, rows, tally, cancelled, rcm, dq, meta, warns, control, st, 1.0)
             self.assertTrue(os.path.exists(out_path))
             wb = openpyxl.load_workbook(out_path, read_only=True)
-            self.assertIn("Matched Invoices", wb.sheetnames)
+            self.assertIn("Summary", wb.sheetnames)
+            self.assertIn("Reco Detail", wb.sheetnames)
+            self.assertIn("Data Quality", wb.sheetnames)
             wb.close()
         finally:
             gst_recon_gui.cleanup_temp_files(temp_tracker)
@@ -578,15 +586,16 @@ class TestLedgerReconciliation(unittest.TestCase):
         wb.save(test_path)
         wb.close()
 
-        records = reconcile.load_register(test_path)
+        records, cancelled, rcm, dq, st = reconcile.parse_tally(test_path)
         self.assertEqual(len(records), 2)
-        self.assertEqual(records[0]["supp_inv"], "INV-9901")
+        self.assertEqual(len(cancelled), 1)
+        self.assertEqual(records[0]["inv"], "INV-9901")
         self.assertEqual(records[0]["taxable"], 10000.0)
         self.assertEqual(records[0]["cgst"], 900.0)
         self.assertEqual(records[0]["sgst"], 900.0)
         self.assertEqual(records[0]["tax"], 1800.0)
 
-        self.assertEqual(records[1]["supp_inv"], "INV-9902")
+        self.assertEqual(records[1]["inv"], "INV-9902")
         self.assertEqual(records[1]["taxable"], 20000.0)
         self.assertEqual(records[1]["igst"], 3600.0)
         self.assertEqual(records[1]["tax"], 3600.0)
