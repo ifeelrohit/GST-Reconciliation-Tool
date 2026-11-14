@@ -18,15 +18,29 @@ Do NOT run the application directly from inside the ZIP file.
 
 STEP 2: LAUNCH THE WORKSTATION
 --------------------------------------------------------------------------------
-Double-click:
-    GST-Reconciliation-Tool.exe
+Option A (Standard - Standalone Executable):
+  Double-click:
+      GST-Reconciliation-Tool.exe
 
-* Note on Windows SmartScreen:
-  Because this executable is open-source and newly compiled, Windows SmartScreen
-  may show a blue banner stating "Windows protected your PC".
-  - Click "More info".
-  - Click "Run anyway".
-  You can verify the file integrity by checking the SHA-256 checksum in SHA256SUMS.txt.
+Option B (If Windows 11 Smart App Control blocks the unsigned .exe):
+  Double-click:
+      Run-GST-Tool.bat   (or Run-GST-Tool.vbs for a completely silent launch)
+  This executes via Python's Microsoft-signed engine without triggering Code Integrity blocks.
+
+* Note on Windows SmartScreen & Smart App Control:
+  Because this executable is open-source and newly compiled, Windows may show:
+  1. SmartScreen Banner ("Windows protected your PC"):
+     - Click "More info".
+     - Click "Run anyway".
+  2. Windows 11 Smart App Control ("An Application Control policy has blocked this file"):
+     - Windows 11 Smart App Control blocks newly created, unsigned .exe files.
+     - To run: Double-click 'Run-GST-Tool.bat', OR in Windows Security -> App & browser
+       control -> Smart App Control, switch to "Evaluation" or "Off".
+
+* Note on Laptop Displays & Screen Scaling (1366x768 / 125% / 150% DPI):
+  The application interface is fully responsive. The "Generate Reconciliation Report"
+  action bar is permanently docked at the bottom of the window, and the upper panels
+  support mousewheel scrolling so no buttons or input fields are ever hidden or cut off.
 
 STEP 3: SELECT RECONCILIATION MODE
 --------------------------------------------------------------------------------

@@ -23,10 +23,18 @@ No installation of Python, libraries, or external runtime software is required.
 
 2. HOW TO LAUNCH
 ----------------
+Primary Option (Standalone Windows Executable):
 Double-click `GST-Reconciliation-Tool.exe` located in the `dist` folder:
 `C:\GST-Reconciliation-Tool-main\dist\GST-Reconciliation-Tool.exe`
 
+Alternative Option (If Windows 11 Smart App Control blocks the unsigned .exe):
+Double-click `Run-GST-Tool.bat` or `Run-GST-Tool.vbs` in the project root.
+This uses Python's Microsoft-signed engine to launch the graphical workstation
+cleanly without triggering Code Integrity policy blocks.
+
 A graphical workstation titled "GST & Accounting Ledger Reconciliation Tool" will open.
+The interface is responsive and automatically adapts to any screen resolution or DPI
+scaling, keeping the "Generate Reconciliation Report" action bar permanently visible.
 
 
 ================================================================================

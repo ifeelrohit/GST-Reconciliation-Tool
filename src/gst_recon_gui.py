@@ -14,6 +14,7 @@ import sys
 import shutil
 import tempfile
 import threading
+import queue
 
 src_dir = os.path.dirname(os.path.abspath(__file__))
 if src_dir not in sys.path:
@@ -84,8 +85,20 @@ class ReconciliationApp:
     def __init__(self, root):
         self.root = root
         self.root.title("GST & Accounting Ledger Reconciliation Tool")
-        self.root.geometry("820x720")
-        self.root.minsize(760, 640)
+
+        # Responsive initial geometry tailored to display dimensions
+        try:
+            sw = self.root.winfo_screenwidth()
+            sh = self.root.winfo_screenheight()
+            init_w = min(840, max(680, sw - 40))
+            init_h = min(700, max(520, sh - 80))
+            x = max(0, (sw - init_w) // 2)
+            y = max(0, (sh - init_h) // 2)
+            self.root.geometry(f"{init_w}x{init_h}+{x}+{y}")
+        except Exception:
+            self.root.geometry("820x660")
+
+        self.root.minsize(680, 480)
 
         # Style configuration
         self.style = ttk.Style()
@@ -102,24 +115,94 @@ class ReconciliationApp:
         self.amount_tolerance = tk.StringVar(value="1.00")
         self.date_tolerance = tk.StringVar(value="30")
         self.is_processing = False
+        self.result_queue = queue.Queue()
 
         self._build_ui()
         self._on_mode_change()
 
     def _build_ui(self):
-        main_frame = ttk.Frame(self.root, padding="14 12 14 12")
+        main_frame = ttk.Frame(self.root, padding="10 8 10 8")
         main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # ---------------------------------------------------------------------
+        # DOCKED ACTION FOOTER (Packed FIRST with side=tk.BOTTOM)
+        # Guarantees the Generate button, progressbar, and status label are ALWAYS
+        # visible and never pushed off-screen on any laptop resolution or scaling.
+        # ---------------------------------------------------------------------
+        action_bar = ttk.Frame(main_frame)
+        action_bar.pack(side=tk.BOTTOM, fill=tk.X, pady=(6, 0))
+
+        self.progressbar = ttk.Progressbar(action_bar, mode="indeterminate")
+        self.progressbar.pack(fill=tk.X, pady=(0, 3))
+
+        self.lbl_status = ttk.Label(
+            action_bar,
+            text="Ready to reconcile.",
+            font=("Segoe UI", 9, "italic"),
+            foreground="#444444"
+        )
+        self.lbl_status.pack(anchor="w", pady=(0, 4))
+
+        self.btn_run = tk.Button(
+            action_bar,
+            text="Generate Reconciliation Report",
+            bg="#1E7145",
+            fg="white",
+            activebackground="#145231",
+            activeforeground="white",
+            font=("Segoe UI", 11, "bold"),
+            relief=tk.RAISED,
+            padx=15,
+            pady=7,
+            cursor="hand2",
+            command=self.generate_report
+        )
+        self.btn_run.pack(fill=tk.X)
+
+        # ---------------------------------------------------------------------
+        # SCROLLABLE CONTENT BODY (Canvas + Vertical Scrollbar)
+        # Allows full scrolling on small laptop displays while action bar is docked.
+        # ---------------------------------------------------------------------
+        canvas_container = ttk.Frame(main_frame)
+        canvas_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        self.canvas = tk.Canvas(canvas_container, highlightthickness=0, borderwidth=0)
+        self.v_scrollbar = ttk.Scrollbar(canvas_container, orient=tk.VERTICAL, command=self.canvas.yview)
+
+        self.content_frame = ttk.Frame(self.canvas)
+        self.content_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.content_frame, anchor="nw")
+
+        def _on_canvas_configure(event):
+            self.canvas.itemconfig(self.canvas_window, width=event.width)
+        self.canvas.bind("<Configure>", _on_canvas_configure)
+        self.canvas.configure(yscrollcommand=self.v_scrollbar.set)
+
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        def _on_mousewheel(event):
+            try:
+                if self.content_frame.winfo_reqheight() > self.canvas.winfo_height():
+                    self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            except Exception:
+                pass
+        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
         # ---------------------------------------------------------------------
         # Title Header
         # ---------------------------------------------------------------------
-        header_frame = ttk.Frame(main_frame)
-        header_frame.pack(fill=tk.X, pady=(0, 10))
+        header_frame = ttk.Frame(self.content_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 6))
 
         title_label = ttk.Label(
             header_frame,
             text="Reconciliation Workstation",
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", 15, "bold"),
             foreground="#1F4E78"
         )
         title_label.pack(anchor="w")
@@ -129,13 +212,13 @@ class ReconciliationApp:
             text="Reconcile Vendor/Customer Accounting Ledgers or GST Inward Tax Credit",
             font=("Segoe UI", 9)
         )
-        subtitle_label.pack(anchor="w", pady=(2, 0))
+        subtitle_label.pack(anchor="w", pady=(1, 0))
 
         # ---------------------------------------------------------------------
         # Mode Selection
         # ---------------------------------------------------------------------
-        mode_box = ttk.LabelFrame(main_frame, text=" Select Reconciliation Workflow ", padding="10 8 10 8")
-        mode_box.pack(fill=tk.X, pady=(0, 10))
+        mode_box = ttk.LabelFrame(self.content_frame, text=" Select Reconciliation Workflow ", padding="8 5 8 5")
+        mode_box.pack(fill=tk.X, pady=(0, 6))
 
         self.r_ledger = ttk.Radiobutton(
             mode_box,
@@ -144,7 +227,7 @@ class ReconciliationApp:
             value="LEDGER",
             command=self._on_mode_change
         )
-        self.r_ledger.pack(anchor="w", pady=2)
+        self.r_ledger.pack(anchor="w", pady=1)
 
         self.r_gstr = ttk.Radiobutton(
             mode_box,
@@ -153,28 +236,28 @@ class ReconciliationApp:
             value="GSTR2B",
             command=self._on_mode_change
         )
-        self.r_gstr.pack(anchor="w", pady=2)
+        self.r_gstr.pack(anchor="w", pady=1)
 
         # ---------------------------------------------------------------------
         # File Inputs Frame
         # ---------------------------------------------------------------------
-        self.input_box = ttk.LabelFrame(main_frame, text=" Required Workbooks ", padding="10 8 10 8")
-        self.input_box.pack(fill=tk.X, pady=(0, 10))
+        self.input_box = ttk.LabelFrame(self.content_frame, text=" Required Workbooks ", padding="8 5 8 5")
+        self.input_box.pack(fill=tk.X, pady=(0, 6))
 
         # File 1
         self.lbl_file1 = ttk.Label(self.input_box, text="File 1:", font=("Segoe UI", 9, "bold"))
-        self.lbl_file1.pack(anchor="w", pady=(1, 2))
+        self.lbl_file1.pack(anchor="w", pady=(1, 1))
         f1_row = ttk.Frame(self.input_box)
-        f1_row.pack(fill=tk.X, pady=(0, 6))
+        f1_row.pack(fill=tk.X, pady=(0, 4))
         self.ent_file1 = ttk.Entry(f1_row, textvariable=self.file1_path)
         self.ent_file1.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
         ttk.Button(f1_row, text="Browse...", command=self.browse_file1).pack(side=tk.RIGHT)
 
         # File 2
         self.lbl_file2 = ttk.Label(self.input_box, text="File 2:", font=("Segoe UI", 9, "bold"))
-        self.lbl_file2.pack(anchor="w", pady=(1, 2))
+        self.lbl_file2.pack(anchor="w", pady=(1, 1))
         f2_row = ttk.Frame(self.input_box)
-        f2_row.pack(fill=tk.X, pady=(0, 6))
+        f2_row.pack(fill=tk.X, pady=(0, 4))
         self.ent_file2 = ttk.Entry(f2_row, textvariable=self.file2_path)
         self.ent_file2.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
         ttk.Button(f2_row, text="Browse...", command=self.browse_file2).pack(side=tk.RIGHT)
@@ -190,16 +273,16 @@ class ReconciliationApp:
         # ---------------------------------------------------------------------
         # Parameters Frame (Tolerances & Destination)
         # ---------------------------------------------------------------------
-        param_box = ttk.LabelFrame(main_frame, text=" Matching Parameters & Output Destination ", padding="10 8 10 8")
-        param_box.pack(fill=tk.X, pady=(0, 10))
+        param_box = ttk.LabelFrame(self.content_frame, text=" Matching Parameters & Output Destination ", padding="8 5 8 5")
+        param_box.pack(fill=tk.X, pady=(0, 6))
 
         tol_row = ttk.Frame(param_box)
-        tol_row.pack(fill=tk.X, pady=(0, 6))
+        tol_row.pack(fill=tk.X, pady=(0, 4))
 
         # Amount Tolerance
         ttk.Label(tol_row, text="Amount Tolerance (₹):", font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=(0, 4))
         self.ent_amt_tol = ttk.Entry(tol_row, textvariable=self.amount_tolerance, width=8)
-        self.ent_amt_tol.pack(side=tk.LEFT, padx=(0, 20))
+        self.ent_amt_tol.pack(side=tk.LEFT, padx=(0, 16))
 
         # Date Tolerance
         ttk.Label(tol_row, text="Date Tolerance (Days):", font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=(0, 4))
@@ -214,7 +297,7 @@ class ReconciliationApp:
 
         # Output Folder Row
         out_row = ttk.Frame(param_box)
-        out_row.pack(fill=tk.X, pady=(2, 0))
+        out_row.pack(fill=tk.X)
         ttk.Label(out_row, text="Destination Folder:", font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Entry(out_row, textvariable=self.output_folder).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
         ttk.Button(out_row, text="Select Folder...", command=self.browse_output).pack(side=tk.RIGHT)
@@ -222,8 +305,8 @@ class ReconciliationApp:
         # ---------------------------------------------------------------------
         # Inspection & Preview Summary Panel (Phase 8 Guide)
         # ---------------------------------------------------------------------
-        self.preview_box = ttk.LabelFrame(main_frame, text=" Workbook Inspection & Validation Summary ", padding="8 6 8 6")
-        self.preview_box.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.preview_box = ttk.LabelFrame(self.content_frame, text=" Workbook Inspection & Validation Summary ", padding="6 4 6 4")
+        self.preview_box.pack(fill=tk.BOTH, expand=True, pady=(0, 2))
 
         # Scrollable text widget for rich preview
         preview_container = ttk.Frame(self.preview_box)
@@ -237,7 +320,7 @@ class ReconciliationApp:
             fg="#222222",
             relief=tk.SOLID,
             borderwidth=1,
-            height=7
+            height=5
         )
         self.txt_preview.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -245,32 +328,6 @@ class ReconciliationApp:
         scrl.pack(side=tk.RIGHT, fill=tk.Y)
         self.txt_preview.config(yscrollcommand=scrl.set)
         self._set_preview_text("Select two workbooks above and click 'Inspect & Preview Workbooks' to verify structures, detected columns, and accounting conventions.")
-
-        # ---------------------------------------------------------------------
-        # Progress Bar & Action Area
-        # ---------------------------------------------------------------------
-        self.progressbar = ttk.Progressbar(main_frame, mode="indeterminate")
-        self.progressbar.pack(fill=tk.X, pady=(0, 6))
-
-        # Status / Feedback Label
-        self.lbl_status = ttk.Label(main_frame, text="Ready to reconcile.", font=("Segoe UI", 9, "italic"), foreground="#444444")
-        self.lbl_status.pack(anchor="w", pady=(0, 8))
-
-        # Run Button
-        self.btn_run = tk.Button(
-            main_frame,
-            text="Generate Reconciliation Report",
-            bg="#1E7145",
-            fg="white",
-            activebackground="#145231",
-            activeforeground="white",
-            font=("Segoe UI", 11, "bold"),
-            relief=tk.RAISED,
-            padx=15,
-            pady=8,
-            command=self.generate_report
-        )
-        self.btn_run.pack(fill=tk.X)
 
     def _set_preview_text(self, text):
         self.txt_preview.config(state=tk.NORMAL)
@@ -477,6 +534,9 @@ class ReconciliationApp:
         self.lbl_status.config(text="Reconciling entries in background thread...")
         self.progressbar.start(10)
 
+        # Start periodic queue polling on main UI thread
+        self.root.after(100, self._poll_result_queue)
+
         mode = self.recon_mode.get()
 
         # Launch background worker
@@ -486,6 +546,23 @@ class ReconciliationApp:
             daemon=True
         )
         worker.start()
+
+    def _poll_result_queue(self):
+        """Check for completed reconciliation results from background worker."""
+        try:
+            while True:
+                msg_type, args = self.result_queue.get_nowait()
+                if msg_type == "SUCCESS":
+                    summary_msg, output_path = args
+                    self._on_recon_success(summary_msg, output_path)
+                    return
+                elif msg_type == "ERROR":
+                    title, message = args
+                    self._on_recon_error(title, message)
+                    return
+        except queue.Empty:
+            if self.is_processing:
+                self.root.after(100, self._poll_result_queue)
 
     def _run_recon_thread(self, f1, f2, out_dir, mode, amt_tol, date_tol):
         """Worker thread for heavy reconciliation computation."""
@@ -502,11 +579,11 @@ class ReconciliationApp:
                 self._execute_gstr_recon(f1_ready, f2_ready, out_dir, timestamp)
 
         except (reconcile.ReconciliationError, ledger_recon.LedgerReconciliationError) as e:
-            self.root.after(0, self._on_recon_error, "Reconciliation Validation Notice", str(e))
+            self.result_queue.put(("ERROR", ("Reconciliation Validation Notice", str(e))))
         except Exception as e:
-            self.root.after(0, self._on_recon_error, "Unexpected Error", f"An unexpected error occurred:\n\n{str(e)}")
+            self.result_queue.put(("ERROR", ("Unexpected Error", f"An unexpected error occurred:\n\n{str(e)}")))
         except BaseException as be:
-            self.root.after(0, self._on_recon_error, "Critical System Halt", str(be))
+            self.result_queue.put(("ERROR", ("Critical System Halt", str(be))))
         finally:
             cleanup_temp_files(temp_tracker)
 
@@ -555,7 +632,7 @@ class ReconciliationApp:
             f"Closing Balance Variance: ₹{stats['closing_diff']:,.2f}\n"
             f"Overall Status: {stats['overall_status']}"
         )
-        self.root.after(0, self._on_recon_success, summary_msg, output_path)
+        self.result_queue.put(("SUCCESS", (summary_msg, output_path)))
 
     def _execute_gstr_recon(self, f1_path, f2_path, out_dir, timestamp):
         """Execute GSTR-2B Portal vs Tally Register reconciliation."""
@@ -584,7 +661,7 @@ class ReconciliationApp:
             f"• Tally Vouchers: {len(reg)}\n"
             f"• Matched Invoices: {result.get('matched_count', 0)}"
         )
-        self.root.after(0, self._on_recon_success, summary_msg, output_path)
+        self.result_queue.put(("SUCCESS", (summary_msg, output_path)))
 
     def _on_recon_success(self, summary_msg, output_path):
         """Handle successful reconciliation completion on main UI thread."""
@@ -607,7 +684,25 @@ class ReconciliationApp:
         messagebox.showerror(title, message)
 
 
+def enable_windows_dpi():
+    """Enable Per-Monitor DPI awareness on Windows to prevent blurry scaling."""
+    try:
+        import ctypes
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(-4)  # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+    except Exception:
+        try:
+            import ctypes
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except Exception:
+            try:
+                import ctypes
+                ctypes.windll.user32.SetProcessDPIAware()
+            except Exception:
+                pass
+
+
 def main():
+    enable_windows_dpi()
     root = tk.Tk()
     app = ReconciliationApp(root)
     root.mainloop()
