@@ -266,37 +266,51 @@ Email providers (such as Gmail or Outlook) frequently block `.exe` files or atta
 
 ## 5. Application Screenshots
 
-### 1. Main Application Interface
+### A. Desktop Application Workflows
+
+#### 1. Main Application Interface
 One-click switching between Ledger-to-Ledger commercial reconciliation and GST Portal Inward ITC audits.
 ![Main Application Interface](screenshots/01-main-interface.png)
 
-### 2. Pre-Reconciliation Workbook Inspection
+#### 2. Pre-Reconciliation Workbook Inspection
 Interactive inspection panel validating sheet structures, header detection, candidate rows, and opening balances.
 ![Workbook Inspection and Validation](screenshots/02-workbook-inspection.png)
 
-### 3. Ledger-to-Ledger Reconciliation Workflow
+#### 3. Ledger-to-Ledger Reconciliation Workflow
 Books vs Party Statement setup with demonstration ledgers, customizable tolerance windows, and destination path.
 ![Ledger-to-Ledger Reconciliation Setup](screenshots/03-ledger-reconciliation.png)
 
-### 4. Executive Summary Worksheet
+#### 4. GST Portal Inward ITC Reconciliation Workflow
+GSTR-2B vs Tally purchase register mode matching inward ITC by invoice number, vendor GSTIN, and tax heads.
+![GST Portal GSTR-2B Reconciliation](screenshots/04-gst-reconciliation.png)
+
+---
+
+### B. Generated Audit Reports
+
+#### 5. Executive Summary Worksheet (Ledger Mode)
 High-level financial summary featuring commercial status badge, financial movement comparison, and variance analysis.
 ![Executive Summary Worksheet](screenshots/05-executive-summary.png)
 
-### 5. Matched Transactions Audit Trail
+#### 6. Matched Transactions Audit Trail (Ledger Mode)
 Side-by-side transaction audit trail displaying matching confidence tiers, applied rules, and verification explanations.
 ![Matched Transactions Audit Trail](screenshots/06-matched-transactions.png)
 
-### 6. Unmatched Transactions & Section 194Q TDS Analysis
+#### 7. Unmatched Transactions & Section 194Q TDS Analysis (Ledger Mode)
 Internal vouchers requiring accountant review, complete with statutory classification (such as Section 194Q TDS) and recommended next actions.
 ![Unmatched Transactions Review](screenshots/07-unmatched-review.png)
 
-### 7. Data Quality & Ingestion Audit Log
+#### 8. Data Quality & Ingestion Audit Log (Ledger Mode)
 Source row traceability identifying segregated opening balance lines and excluded summary total rows.
 ![Data Quality and Ingestion Audit Log](screenshots/08-data-quality.png)
 
-### 8. GST Portal Inward ITC Reconciliation Workflow
-GSTR-2B vs Tally purchase register mode matching inward ITC by invoice number, vendor GSTIN, and tax heads.
-![GST Portal GSTR-2B Reconciliation](screenshots/04-gst-reconciliation.png)
+#### 9. GSTR-2B Summary & Official ITC Bridge (GST Mode)
+Status-wise inward ITC reconciliation and mathematical ITC bridge tying internal claims directly to portal summary with exact ₹0.00 difference.
+![GSTR-2B Summary and ITC Bridge](screenshots/09-gstr2b-summary.png)
+
+#### 10. GSTR-2B Reco Detail Audit Register (GST Mode)
+25-column side-by-side inward invoice audit register with live Excel variance formulas (`=K# - V#`), remarks, and actions.
+![GSTR-2B Reco Detail Audit Register](screenshots/10-gstr2b-reco-detail.png)
 
 ---
 
