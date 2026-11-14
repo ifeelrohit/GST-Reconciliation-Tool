@@ -500,6 +500,9 @@ class TestLedgerReconciliation(unittest.TestCase):
             out_path = os.path.join(self.temp_dir, "GST_Demo_Report.xlsx")
             reconcile.write_report(out_path, meta, invs, cdnr, reg, res)
             self.assertTrue(os.path.exists(out_path))
+            wb = openpyxl.load_workbook(out_path, read_only=True)
+            self.assertIn("Matched Invoices", wb.sheetnames)
+            wb.close()
         finally:
             gst_recon_gui.cleanup_temp_files(temp_tracker)
 
@@ -536,6 +539,57 @@ class TestLedgerReconciliation(unittest.TestCase):
         wb = openpyxl.load_workbook(out_path, read_only=True)
         self.assertEqual(len(wb.sheetnames), 9)
         wb.close()
+
+    # -------------------------------------------------------------------------
+    # Test 24: Dynamic Column Detection for Modern Tally Purchase Registers
+    # -------------------------------------------------------------------------
+    def test_24_dynamic_tally_purchase_register_parsing(self):
+        # Create a synthetic workbook with modern Tally Purchase Register columns
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Purchase Register"
+        ws.append(["Sample Company Pvt Ltd"])
+        ws.append(["Purchase Register"])
+        ws.append(["1-Oct-2026 to 31-Oct-2026"])
+        ws.append([
+            "Date", "Particulars", "Voucher Type", "Voucher No.",
+            "Supplier Invoice No.", "GSTIN/UIN", "Value", "Gross Total",
+            "PURCHASE GST", "CGST INPUT", "SGST INPUT", "ROUND OFF",
+            "PURCHASE IGST", "IGST INPUT"
+        ])
+        ws.append([
+            datetime(2026, 10, 5), "Vendor Alpha", "Purchase", "PUR/01",
+            "INV-9901", "27AAAAA0000A1Z5", 10000.0, 11800.0,
+            10000.0, 900.0, 900.0, 0.0,
+            None, None
+        ])
+        ws.append([
+            datetime(2026, 10, 10), "Vendor Beta", "Purchase", "PUR/02",
+            "INV-9902", "24BBBBB1111B1Z2", 20000.0, 23600.0,
+            None, None, None, 0.0,
+            20000.0, 3600.0
+        ])
+        ws.append([
+            datetime(2026, 10, 15), "(cancelled )", "Purchase", "PUR/03",
+            "", "", None, None, None, None, None, None, None, None
+        ])
+
+        test_path = os.path.join(self.temp_dir, "Synthetic_Modern_Tally.xlsx")
+        wb.save(test_path)
+        wb.close()
+
+        records = reconcile.load_register(test_path)
+        self.assertEqual(len(records), 2)
+        self.assertEqual(records[0]["supp_inv"], "INV-9901")
+        self.assertEqual(records[0]["taxable"], 10000.0)
+        self.assertEqual(records[0]["cgst"], 900.0)
+        self.assertEqual(records[0]["sgst"], 900.0)
+        self.assertEqual(records[0]["tax"], 1800.0)
+
+        self.assertEqual(records[1]["supp_inv"], "INV-9902")
+        self.assertEqual(records[1]["taxable"], 20000.0)
+        self.assertEqual(records[1]["igst"], 3600.0)
+        self.assertEqual(records[1]["tax"], 3600.0)
 
 
 if __name__ == "__main__":

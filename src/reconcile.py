@@ -46,6 +46,37 @@ def r2(x):
         return 0.0
 
 
+def parse_date_val(val):
+    """Parse date from datetime, date, int serial, or string."""
+    if val is None:
+        return None
+    if isinstance(val, datetime.datetime):
+        return val.date()
+    if isinstance(val, datetime.date):
+        return val
+    if isinstance(val, (int, float)):
+        try:
+            return (datetime.date(1899, 12, 30) + datetime.timedelta(days=int(val)))
+        except Exception:
+            return None
+    s = str(val).strip()
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%d-%b-%y", "%d-%b-%Y", "%Y/%m/%d"):
+        try:
+            return datetime.datetime.strptime(s, fmt).date()
+        except ValueError:
+            pass
+    return None
+
+
+def norm_inv(s):
+    """Normalize invoice number by removing punctuation/whitespace and leading zeros."""
+    if not s:
+        return ""
+    import re
+    cleaned = re.sub(r'[\s/\\_.,\-–—]+', '', str(s)).upper()
+    return cleaned.lstrip('0')
+
+
 def find_header_row(ws, must_contain, max_scan=20):
     """Return the 0-based index of the first row containing all `must_contain`
     substrings (case-insensitive), scanning the first `max_scan` rows."""
@@ -114,28 +145,109 @@ def load_2b(path):
 
 
 def load_register(path):
-    """Load the Tally 'GSTR-3B - Voucher Register' export."""
+    """Load the Tally 'GSTR-3B - Voucher Register' or Purchase Register export."""
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-    # Pick the register sheet (first sheet whose name mentions voucher/register,
-    # else the only/first sheet).
     sheet = next((s for s in wb.sheetnames
-                  if "voucher" in s.lower() or "register" in s.lower()),
+                  if any(k in s.lower() for k in ("voucher", "register", "purchase", "gstr"))),
                  wb.sheetnames[0])
     ws = wb[sheet]
+    rows = list(ws.iter_rows(values_only=True))
+    wb.close()
+
+    if not rows:
+        raise ReconciliationError(f"Workbook '{path}' contains no rows.")
+
+    # Dynamic header detection
+    hdr_idx = None
+    col_map = {}
+    for i, r in enumerate(rows[:30]):
+        row_str = " | ".join([str(c or "").lower() for c in r])
+        if "date" in row_str and any(k in row_str for k in ("particulars", "party", "voucher", "purchase")):
+            hdr_idx = i
+            for c_idx, c in enumerate(r):
+                if not c:
+                    continue
+                c_clean = str(c).strip().lower()
+                # Exclude non-tax ledgers from tax columns
+                if any(p in c_clean for p in ("purchase", "sale", "round off", "discount", "carriage", "ledger", "freight", "gross")) and not any(t in c_clean for t in ("cgst input", "sgst input", "igst input")):
+                    continue
+                if "date" in c_clean and "col_date" not in col_map:
+                    col_map["col_date"] = c_idx
+                elif any(k in c_clean for k in ("particulars", "party", "supplier", "vendor")) and "col_party" not in col_map:
+                    col_map["col_party"] = c_idx
+                elif any(k in c_clean for k in ("voucher type", "vch type")) and "col_vtype" not in col_map:
+                    col_map["col_vtype"] = c_idx
+                elif any(k in c_clean for k in ("voucher no", "vch no")) and "col_vno" not in col_map:
+                    col_map["col_vno"] = c_idx
+                elif any(k in c_clean for k in ("supplier invoice", "supp inv", "invoice no", "inv no", "ref no", "bill no")) and "col_inv" not in col_map:
+                    col_map["col_inv"] = c_idx
+                elif any(k in c_clean for k in ("gstin", "uin")) and "col_gstin" not in col_map:
+                    col_map["col_gstin"] = c_idx
+                elif (any(k in c_clean for k in ("taxable value", "taxable amt", "taxable")) or c_clean == "value") and "col_taxable" not in col_map:
+                    col_map["col_taxable"] = c_idx
+                elif any(k in c_clean for k in ("cgst input", "central tax", "cgst")) and "col_cgst" not in col_map:
+                    col_map["col_cgst"] = c_idx
+                elif any(k in c_clean for k in ("sgst input", "state tax", "utgst", "sgst")) and "col_sgst" not in col_map:
+                    col_map["col_sgst"] = c_idx
+                elif any(k in c_clean for k in ("igst input", "integrated tax", "igst")) and "col_igst" not in col_map:
+                    col_map["col_igst"] = c_idx
+                elif any(k in c_clean for k in ("cess input", "cess")) and "col_cess" not in col_map:
+                    col_map["col_cess"] = c_idx
+            break
 
     reg = []
-    for r in ws.iter_rows(values_only=True):
-        # Data rows begin with a real date in column A.
-        if not isinstance(r[0], datetime.datetime):
+    start_row = (hdr_idx + 1) if hdr_idx is not None else 0
+    for r in rows[start_row:]:
+        d_raw = r[col_map.get("col_date", 0)] if col_map else r[0]
+        parsed_dt = parse_date_val(d_raw)
+        if not parsed_dt:
             continue
-        rec = dict(date=r[0], party=r[1], vtype=r[2], vno=str(r[3]),
-                   taxable=r2(r[4]), igst=r2(r[5]), cgst=r2(r[6]),
-                   sgst=r2(r[7]), cess=r2(r[8]))
-        rec["tax"] = r2(rec["igst"] + rec["cgst"] + rec["sgst"] + rec["cess"])
+
+        party = str(r[col_map.get("col_party", 1)] if col_map and "col_party" in col_map else (r[1] if len(r) > 1 else "") or "").strip()
+        if not party or "total" in party.lower():
+            continue
+
+        vtype = str(r[col_map.get("col_vtype", 2)] if col_map and "col_vtype" in col_map else (r[2] if len(r) > 2 else "") or "").strip()
+        if "(cancelled" in party.lower() or "cancelled" in vtype.lower():
+            continue
+
+        vno = str(r[col_map.get("col_vno", 3)] if col_map and "col_vno" in col_map else (r[3] if len(r) > 3 else "") or "").strip()
+        supp_inv = str(r[col_map["col_inv"]]).strip() if "col_inv" in col_map and r[col_map["col_inv"]] is not None else ""
+        gstin = str(r[col_map["col_gstin"]]).strip().upper() if "col_gstin" in col_map and r[col_map["col_gstin"]] is not None else ""
+
+        if col_map and "col_taxable" in col_map:
+            taxable = r2(r[col_map["col_taxable"]])
+            cgst = r2(r[col_map["col_cgst"]]) if "col_cgst" in col_map else 0.0
+            sgst = r2(r[col_map["col_sgst"]]) if "col_sgst" in col_map else 0.0
+            igst = r2(r[col_map["col_igst"]]) if "col_igst" in col_map else 0.0
+            cess = r2(r[col_map["col_cess"]]) if "col_cess" in col_map else 0.0
+        else:
+            taxable = r2(r[4]) if len(r) > 4 else 0.0
+            igst = r2(r[5]) if len(r) > 5 else 0.0
+            cgst = r2(r[6]) if len(r) > 6 else 0.0
+            sgst = r2(r[7]) if len(r) > 7 else 0.0
+            cess = r2(r[8]) if len(r) > 8 else 0.0
+
+        tax = r2(igst + cgst + sgst + cess)
+        rec = dict(
+            date=d_raw,
+            party=party,
+            vtype=vtype,
+            vno=vno,
+            supp_inv=supp_inv,
+            norm_inv=norm_inv(supp_inv) or norm_inv(vno),
+            gstin=gstin,
+            taxable=taxable,
+            igst=igst,
+            cgst=cgst,
+            sgst=sgst,
+            cess=cess,
+            tax=tax
+        )
         reg.append(rec)
-    wb.close()
+
     if not reg:
-        raise ReconciliationError(f"No dated voucher rows found in '{path}'.")
+        raise ReconciliationError(f"No valid voucher rows found in '{path}'.")
     return reg
 
 
@@ -241,43 +353,91 @@ def inspect_gstr_file(path):
 # Matching
 # -----------------------------------------------------------------------------
 def reconcile(invoices, reg):
-    """Two-pass match. Returns dict with matched count and unmatched lists."""
+    """Multi-pass reconciliation between GSTR-2B invoices and Tally vouchers.
+
+    Pass 1: Invoice Number + GSTIN or Amount proximity match.
+    Pass 2: Exact (taxable, total-tax) signature match.
+    Pass 3: Near match on total-tax (rupee) - absorbs rounding / small taxable differences.
+    """
+    unmatched_inv = list(invoices)
+    unmatched_reg = list(reg)
+    matched_pairs = []
+
+    # Pass 1: Invoice Number + (GSTIN or Tax match)
+    for r in list(unmatched_reg):
+        inv_targets = set()
+        if r.get("supp_inv"):
+            n1 = norm_inv(r["supp_inv"])
+            if n1:
+                inv_targets.add(n1)
+        if r.get("vno"):
+            n2 = norm_inv(r["vno"])
+            if n2:
+                inv_targets.add(n2)
+        if not inv_targets:
+            continue
+
+        candidates = [inv for inv in unmatched_inv if norm_inv(inv["inv"]) in inv_targets]
+        if not candidates:
+            continue
+
+        # Narrow down by GSTIN if available
+        if r.get("gstin"):
+            c_gst = [c for c in candidates if c.get("gstin") == r["gstin"]]
+            if c_gst:
+                candidates = c_gst
+
+        # Narrow down by tax / taxable proximity
+        c_amt = [c for c in candidates if abs(c["tax"] - r["tax"]) <= 1.0 or abs(c["taxable"] - r["taxable"]) <= 1.0]
+        if c_amt:
+            candidates = c_amt
+
+        if len(candidates) == 1:
+            best = candidates[0]
+            matched_pairs.append((best, r, "Exact Invoice Match"))
+            unmatched_inv.remove(best)
+            unmatched_reg.remove(r)
+
+    # Pass 2: Exact (taxable, tax) signature
     def sig(x):
         return (round(x["taxable"]), round(x["tax"]))
 
-    # Pass 1: exact (taxable, tax) signature.
     reg_by_sig = defaultdict(list)
-    for x in reg:
-        reg_by_sig[sig(x)].append(x)
+    for r in unmatched_reg:
+        reg_by_sig[sig(r)].append(r)
 
-    only_2b, matched = [], 0
-    for inv in invoices:
+    for inv in list(unmatched_inv):
         bucket = reg_by_sig.get(sig(inv))
         if bucket:
-            bucket.pop()
-            matched += 1
-        else:
-            only_2b.append(inv)
-    leftover_reg = [x for bucket in reg_by_sig.values() for x in bucket]
+            r = bucket.pop()
+            matched_pairs.append((inv, r, "Exact Amount Signature Match"))
+            unmatched_inv.remove(inv)
+            unmatched_reg.remove(r)
 
-    # Pass 2: match remaining on total-tax (rupee) - absorbs rounding / small
-    # taxable differences for the same underlying invoice.
+    # Pass 3: Near match on total tax (rupee)
     reg_by_tax = defaultdict(list)
-    for x in leftover_reg:
-        reg_by_tax[round(x["tax"])].append(x)
+    for r in unmatched_reg:
+        reg_by_tax[round(r["tax"])].append(r)
 
-    near_pairs, still_2b = [], []
-    for inv in only_2b:
+    near_pairs = []
+    for inv in list(unmatched_inv):
         bucket = reg_by_tax.get(round(inv["tax"]))
         if bucket:
-            near_pairs.append((inv, bucket.pop()))
-            matched += 1
-        else:
-            still_2b.append(inv)
-    only_reg = [x for bucket in reg_by_tax.values() for x in bucket]
+            r = bucket.pop()
+            near_pairs.append((inv, r))
+            matched_pairs.append((inv, r, "Near Match (Tax Equal)"))
+            unmatched_inv.remove(inv)
+            unmatched_reg.remove(r)
 
-    return dict(matched=matched, matched_count=matched, only_2b=still_2b, only_reg=only_reg,
-                near_pairs=near_pairs)
+    matched_count = len(matched_pairs)
+    return {
+        "matched": matched_count,
+        "matched_count": matched_count,
+        "matched_pairs": matched_pairs,
+        "only_2b": unmatched_inv,
+        "only_reg": unmatched_reg,
+        "near_pairs": near_pairs
+    }
 
 
 # -----------------------------------------------------------------------------
@@ -397,11 +557,40 @@ def write_report(path, meta, invoices, cdnr, reg, result):
         r += 1
     _autofit(ws, [40, 16, 16, 16, 16, 16])
 
+    # --------------------------------------------- Matched Invoices
+    if result.get("matched_pairs"):
+        ws = wb.create_sheet("Matched Invoices")
+        ws["A1"] = "Matched Invoices — Reconciled Between GSTR-2B Portal and Tally Register"
+        ws["A1"].font = TITLE_FONT
+        m_rows = []
+        for inv, v, rule in sorted(result["matched_pairs"], key=lambda p: -p[0]["tax"]):
+            m_rows.append([
+                rule,
+                inv.get("gstin", ""),
+                inv.get("name", ""),
+                inv.get("inv", ""),
+                str(inv.get("date", "")),
+                inv.get("taxable", 0.0),
+                inv.get("tax", 0.0),
+                v.get("party", ""),
+                v.get("supp_inv", "") or v.get("vno", ""),
+                str(v.get("date", "")),
+                v.get("taxable", 0.0),
+                v.get("tax", 0.0),
+                r2(inv.get("tax", 0.0) - v.get("tax", 0.0))
+            ])
+        _table(ws, 3,
+               ["Match Method", "Supplier GSTIN", "2B Supplier", "2B Invoice No", "2B Date",
+                "2B Taxable", "2B Tax", "Tally Party", "Tally Inv/Vch", "Tally Date",
+                "Tally Taxable", "Tally Tax", "Tax Diff"],
+               m_rows, money_cols={6, 7, 11, 12, 13},
+               widths=[22, 18, 30, 18, 12, 14, 14, 30, 18, 12, 14, 14, 12])
+
     # --------------------------------------------- In 2B only (missing in books)
     ws = wb.create_sheet("In 2B not in Tally")
     ws["A1"] = "In GSTR-2B but NOT booked in Tally — possible missed ITC / unrecorded purchase"
     ws["A1"].font = TITLE_FONT
-    rows = [[x["gstin"], x["name"], x["inv"], x["date"], x["taxable"],
+    rows = [[x["gstin"], x["name"], x["inv"], str(x["date"]), x["taxable"],
              x["igst"], x["cgst"], x["sgst"], x["cess"], x["tax"], x.get("itc_avail")]
             for x in sorted(result["only_2b"], key=lambda z: -z["tax"])]
     _table(ws, 3,
@@ -414,7 +603,7 @@ def write_report(path, meta, invoices, cdnr, reg, result):
     ws = wb.create_sheet("In Tally not in 2B")
     ws["A1"] = "In Tally but NOT in GSTR-2B — claimed in books without portal support (verify)"
     ws["A1"].font = TITLE_FONT
-    rows = [[x["date"], x["party"], x["vtype"], x["vno"], x["taxable"],
+    rows = [[str(x["date"]), x["party"], x["vtype"], x["vno"], x["taxable"],
              x["igst"], x["cgst"], x["sgst"], x["cess"], x["tax"]]
             for x in sorted(result["only_reg"], key=lambda z: -z["tax"])]
     _table(ws, 3,
@@ -424,18 +613,33 @@ def write_report(path, meta, invoices, cdnr, reg, result):
            widths=[12, 34, 22, 20, 14, 12, 12, 12, 10, 14])
 
     # --------------------------------------------- Near matches
-    ws = wb.create_sheet("Near matches")
-    ws["A1"] = "Same total tax, taxable value differs — likely same invoice, minor booking difference"
-    ws["A1"].font = TITLE_FONT
-    rows = []
-    for inv, v in sorted(result["near_pairs"], key=lambda p: -p[0]["tax"]):
-        rows.append([inv["name"], inv["inv"], inv["taxable"], v["party"], v["vno"],
-                     v["taxable"], r2(inv["taxable"] - v["taxable"]), inv["tax"]])
-    _table(ws, 3,
-           ["2B Supplier", "2B Invoice", "2B Taxable", "Tally Party", "Tally Vch",
-            "Tally Taxable", "Taxable Diff", "Total Tax (equal)"],
-           rows, money_cols={3, 6, 7, 8},
-           widths=[30, 18, 14, 30, 18, 14, 14, 16])
+    if result.get("near_pairs"):
+        ws = wb.create_sheet("Near matches")
+        ws["A1"] = "Same total tax, taxable value differs — likely same invoice, minor booking difference"
+        ws["A1"].font = TITLE_FONT
+        rows = []
+        for inv, v in sorted(result["near_pairs"], key=lambda p: -p[0]["tax"]):
+            rows.append([inv["name"], inv["inv"], inv["taxable"], v["party"], v["vno"],
+                         v["taxable"], r2(inv["taxable"] - v["taxable"]), inv["tax"]])
+        _table(ws, 3,
+               ["2B Supplier", "2B Invoice", "2B Taxable", "Tally Party", "Tally Vch",
+                "Tally Taxable", "Taxable Diff", "Total Tax (equal)"],
+               rows, money_cols={3, 6, 7, 8},
+               widths=[30, 18, 14, 30, 18, 14, 14, 16])
+
+    # --------------------------------------------- CDNR Credit Notes
+    if cdnr:
+        ws = wb.create_sheet("2B Credit Notes (CDNR)")
+        ws["A1"] = "Credit / Debit Notes in GSTR-2B — Must be accounted as ITC reversals in Books / 3B"
+        ws["A1"].font = TITLE_FONT
+        rows = [[x["gstin"], x["name"], x["note"], x["nttype"], str(x["date"]),
+                 x["taxable"], x["igst"], x["cgst"], x["sgst"], x["cess"], x["tax"]]
+                for x in sorted(cdnr, key=lambda z: -z["tax"])]
+        _table(ws, 3,
+               ["Supplier GSTIN", "Supplier", "Note No", "Note Type", "Note Date",
+                "Taxable", "IGST", "CGST", "SGST", "Cess", "Total Tax"],
+               rows, money_cols={6, 7, 8, 9, 10, 11},
+               widths=[20, 32, 18, 14, 12, 14, 12, 12, 12, 10, 14])
 
     wb.save(path)
 
